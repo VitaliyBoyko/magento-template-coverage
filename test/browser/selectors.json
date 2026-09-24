@@ -1,0 +1,14 @@
+{
+  "ready": "#ready",
+  "openPanel": "#open-panel",
+  "panel": "#panel",
+  "openModal": "#open-modal",
+  "modal": "aside[role=dialog]",
+  "next": "#next-page",
+  "second": "#second-page",
+  "transient": "#insert-transient",
+  "transientContent": "#transient-content",
+  "table": "#insert-row",
+  "row": "#table-row",
+  "hidden": "#insert-hidden"
+}

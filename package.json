@@ -1,0 +1,28 @@
+{
+  "name": "@vitaliiboiko/magento-template-coverage",
+  "version": "0.1.0",
+  "description": "Browser template DOM coverage for disposable Magento test copies",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VitaliyBoyko/magento-template-coverage.git"
+  },
+  "homepage": "https://github.com/VitaliyBoyko/magento-template-coverage#readme",
+  "bugs": { "url": "https://github.com/VitaliyBoyko/magento-template-coverage/issues" },
+  "engines": { "node": ">=18.3" },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "keywords": ["magento", "cypress", "coverage", "templates", "knockout"],
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./browser": "./lib/browser.js",
+    "./cypress": "./cypress/support.js"
+  },
+  "bin": { "magento-template-coverage": "bin/cli.js" },
+  "files": ["bin", "lib", "cypress", "README.md"],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:browser": "node test/browser/run.js",
+    "prepublishOnly": "npm test"
+  }
+}
