@@ -1,0 +1,27 @@
+<section>
+    <button id="open-panel" data-bind="click: toggle">Toggle</button>
+    <button id="populate" data-bind="click: populate">Populate</button>
+    <input id="plain-value" data-bind="value: plain">
+    <input id="magento-value" ko-value="plainShorthand">
+    <input id="checked" type="checkbox" ko-checked="checked">
+    <span id="entity" data-bind="text: 'one &amp; two', attr: {title: '&quot;quoted&quot;'}"></span>
+    <if args="open">
+        <span id="custom-if-child" text="message"></span>
+        <render args="name: 'nested-cache', data: $data"></render>
+    </if>
+    <span id="outer-if" if="open" text="message"></span>
+    <div innerif="open"><span id="inner-if-child" text="message"></span></div>
+    <div innerifnot="open"><span id="ifnot-child" text="message"></span></div>
+    <ifnot args="open"><span id="custom-ifnot-child" text="message"></span></ifnot>
+    <!-- ko if: open -->
+    <span id="virtual-child" data-bind="text: message"></span>
+    <div render></div>
+    <!-- /ko -->
+    <each args="items"><span class="custom-item" text="$data"></span></each>
+    <div each="items"><span class="inner-item" data-bind="text: $data"></span></div>
+    <span class="outer-item" outereach="items" text="$data"></span>
+    <with args="person"><text args="name"></text></with>
+    <!-- ko if: false -->
+    <span id="never-evaluated" data-bind="text: explode()"></span>
+    <!-- /ko -->
+</section>

@@ -1,19 +1,33 @@
 'use strict';
 
 const { observeTemplates } = require('../lib/browser');
+const { observeExecution } = require('../lib/execution');
 
 function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
     let collector;
+    let execution;
     let ids = new Set();
+    let hits = {};
+
+    function connect(win) {
+        collector?.disconnect();
+        execution?.disconnect();
+        collector = observeTemplates(win, id => ids.add(id));
+        execution = observeExecution(win, (id, statement) => {
+            const counters = hits[id] ||= {};
+            counters[statement] = (counters[statement] || 0) + 1;
+        });
+    }
 
     Cypress.on('test:before:run', () => {
         if (collector) collector.disconnect();
+        execution?.disconnect();
         collector = undefined;
         ids = new Set();
+        hits = {};
     });
     Cypress.on('window:before:load', win => {
-        if (collector) collector.disconnect();
-        collector = observeTemplates(win, id => ids.add(id));
+        connect(win);
     });
     Cypress.on('window:before:unload', () => {
         if (collector) collector.flush();
@@ -22,7 +36,7 @@ function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
     beforeEach(() => {
         // Also supports tests that keep the current page with testIsolation: false.
         cy.window({ log: false }).then(win => {
-            if (!collector) collector = observeTemplates(win, id => ids.add(id));
+            if (!collector) connect(win);
         });
     });
 
@@ -33,12 +47,13 @@ function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
             const recordId = globalThis.crypto.randomUUID?.() ||
                 `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
             const record = {
-                schemaVersion: 1,
+                schemaVersion: 2,
                 recordId,
                 spec: Cypress.spec.relative,
                 test: Cypress.currentTest.titlePath,
                 retry: this.currentTest.currentRetry(),
-                ids: [...ids].sort()
+                ids: [...ids].sort(),
+                hits
             };
             return cy.writeFile(`${outputDir}/${recordId}.mtc`, JSON.stringify(record), { log: false });
         });

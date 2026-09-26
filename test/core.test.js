@@ -12,12 +12,12 @@ function fixture(t) {
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const source = path.join(directory, 'magento');
     const files = {
-        'app/code/Example/Demo/view/frontend/web/template/root.html': '<div>Root</div>',
-        'app/code/Example/Demo/view/frontend/web/template/unused.html': '<div>Unused</div>',
-        'app/code/Example/Demo/view/frontend/email/order.html': '<div>{{var order}}</div>',
-        'app/code/Example/Demo/view/frontend/templates/block.phtml': '<div><?= $block->getName() ?></div>',
-        'app/design/frontend/example/theme/Example_Demo/web/templates/modal.html': '<div><%= data.title %></div>',
-        'app/design/adminhtml/example/theme/Example_Demo/web/template/grid.html': '<div>Admin</div>'
+        'app/code/Application/Blog/view/frontend/web/template/root.html': '<div>Root</div>',
+        'app/code/Application/Blog/view/frontend/web/template/unused.html': '<div>Unused</div>',
+        'app/code/Application/Blog/view/frontend/email/order.html': '<div>{{var order}}</div>',
+        'app/code/Application/Blog/view/frontend/templates/block.phtml': '<div><?= $block->getName() ?></div>',
+        'app/design/frontend/example/theme/Application_Blog/web/templates/modal.html': '<div><%= data.title %></div>',
+        'app/design/adminhtml/example/theme/Application_Blog/web/template/grid.html': '<div>Admin</div>'
     };
     for (const [file, content] of Object.entries(files)) {
         fs.mkdirSync(path.dirname(path.join(source, file)), { recursive: true });
@@ -58,9 +58,9 @@ test('original tree, symlinked destinations and stale inputs are rejected before
     fs.mkdirSync(path.join(directory, 'linked-output'));
     fs.symlinkSync(path.join(directory, 'linked-output'), path.join(directory, 'alias'));
     assert.throws(() => instrument({ source, manifest, mappings: { ...mappings, 'app/code': path.join(directory, 'alias') } }), /symlinked destination/);
-    const destination = path.join(mappings['app/code'], 'Example');
+    const destination = path.join(mappings['app/code'], 'Application');
     fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.symlinkSync(path.join(source, 'app/code/Example'), destination);
+    fs.symlinkSync(path.join(source, 'app/code/Application'), destination);
     assert.throws(() => instrument({ source, manifest, mappings }), /symlinked destination/);
     fs.unlinkSync(destination);
     const changed = manifest.templates.find(entry => entry.instrumented);
@@ -99,8 +99,8 @@ test('source identity separates theme overrides and invalidates changed template
 test('merging retains zeros, deduplicates copied records and rejects stale hits', t => {
     const { manifest } = fixture(t);
     const supported = manifest.templates.filter(entry => entry.instrumented);
-    const first = { schemaVersion: 1, recordId: 'shard-1', ids: [supported[0].id, supported[0].id] };
-    const second = { schemaVersion: 1, recordId: 'shard-2', ids: [supported[1].id, supported[0].id] };
+    const first = { schemaVersion: 2, recordId: 'shard-1', ids: [supported[0].id, supported[0].id], hits: {} };
+    const second = { schemaVersion: 2, recordId: 'shard-2', ids: [supported[1].id, supported[0].id], hits: {} };
     const report = merge(manifest, [first, first, second]);
     assert.deepEqual(report.summary, { eligible: 4, covered: 2, uncovered: 2, unsupported: 2, percent: 50 });
     assert.equal(report.records, 2);
@@ -114,7 +114,7 @@ test('report escapes source names and only reads .mtc records alongside Istanbul
     manifest.templates[0].path = 'app/code/<script>alert(1)</script>.html';
     const hits = path.join(directory, 'hits');
     fs.mkdirSync(hits);
-    const record = { schemaVersion: 1, recordId: 'empty-test', ids: [] };
+    const record = { schemaVersion: 2, recordId: 'empty-test', ids: [], hits: {} };
     fs.writeFileSync(path.join(hits, 'one.mtc'), JSON.stringify(record));
     fs.writeFileSync(path.join(hits, 'istanbul.json'), '{}');
     assert.deepEqual(readRecords(hits), [record]);

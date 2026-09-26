@@ -18,7 +18,7 @@ describe('browser template coverage', () => {
         cy.get(selectors.openPanel).click();
         cy.get(selectors.panel).should('be.visible');
         cy.get(selectors.openModal).click();
-        cy.get(selectors.modal).should('be.visible').and('contain.text', 'Prototype modal');
+        cy.get(selectors.modal).should('be.visible').and('contain.text', 'Application modal');
     });
 
     it('retains observations across real page navigation', () => {
@@ -55,5 +55,36 @@ describe('retained document', { testIsolation: false }, () => {
     it('observes a retained document without navigation', () => {
         cy.get(selectors.openPanel).click();
         cy.get(selectors.panel).should('be.visible');
+    });
+});
+
+describe('Knockout binding execution', () => {
+    it('leaves false conditional bodies and empty loops uncovered', () => {
+        cy.visit('/bindings.html');
+        cy.get(selectors.ready).should('have.text', 'Ready');
+        cy.get('#custom-if-child, #outer-if, #inner-if-child, #virtual-child, .custom-item, .inner-item, .outer-item, #never-evaluated').should('not.exist');
+        cy.get('#ifnot-child, #custom-ifnot-child').should('have.length', 2);
+        cy.get('#entity').should('have.text', 'one & two').and('have.attr', 'title', '"quoted"');
+    });
+
+    it('preserves writes and measures Magento shorthand and conditional rerenders', () => {
+        cy.visit('/bindings.html');
+        cy.get(selectors.ready).should('have.text', 'Ready');
+        cy.get('#plain-value').clear().type('changed').blur();
+        cy.get('#magento-value').clear().type('shorthand changed').blur();
+        cy.get('#checked').check();
+        cy.window().then(win => {
+            expect(win.fixtureModel.plain).to.equal('changed');
+            expect(win.fixtureModel.plainShorthand).to.equal('shorthand changed');
+            expect(win.fixtureModel.checked()).to.equal(true);
+        });
+        cy.get('#open-panel').click();
+        cy.get('#custom-if-child, #outer-if, #inner-if-child, #virtual-child').should('have.length', 4);
+        cy.get('#ifnot-child, #custom-ifnot-child').should('not.exist');
+        cy.get('#populate').click();
+        cy.get('.custom-item, .inner-item, .outer-item').should('have.length', 6);
+        cy.get('#open-panel').click().click();
+        cy.get('#virtual-child').should('have.text', 'template');
+        cy.get('#never-evaluated').should('not.exist');
     });
 });

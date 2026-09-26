@@ -20,13 +20,13 @@ function main() {
         }
     });
     if (values.help || !positionals.length) {
-        console.log(`Magento browser template coverage (prototype)
+        console.log(`Magento template execution coverage
   inventory --source <Magento> --manifest <file> [--root app/code --root app/design]
   instrument --source <Magento> --manifest <file> --map app/code=<copy> --map app/design=<copy>
   report --manifest <file> --hits <shard-directory> --output <report-directory>
 
 Instrumentation only writes outside the original Magento tree. Reports measure
-template DOM presence, not JavaScript statements, visibility or assertions.`);
+Knockout binding statements, their starting source lines, and separate template DOM presence.`);
         return;
     }
     const command = positionals[0];
@@ -55,6 +55,7 @@ template DOM presence, not JavaScript statements, visibility or assertions.`);
         } else {
             const report = merge(manifest, readRecords(values.hits));
             writeReport(report, values.output);
+            console.log(`Binding execution: ${report.lines.covered}/${report.lines.total} lines; ${report.statements.covered}/${report.statements.total} statements.`);
             console.log(`Template DOM coverage: ${report.summary.covered}/${report.summary.eligible}; ${report.summary.unsupported} unsupported. Report: ${path.join(values.output, 'index.html')}`);
         }
     }
