@@ -64,6 +64,7 @@ describe('Knockout binding execution', () => {
         cy.get(selectors.ready).should('have.text', 'Ready');
         cy.get('#custom-if-child, #outer-if, #inner-if-child, #virtual-child, .custom-item, .inner-item, .outer-item, #never-evaluated').should('not.exist');
         cy.get('#ifnot-child, #custom-ifnot-child').should('have.length', 2);
+        cy.get('#bare-bindings, #empty-shorthand').each(node => expect(node.text()).to.equal('undefined'));
         cy.get('#entity').should('have.text', 'one & two').and('have.attr', 'title', '"quoted"');
     });
 
@@ -86,5 +87,33 @@ describe('Knockout binding execution', () => {
         cy.get('#open-panel').click().click();
         cy.get('#virtual-child').should('have.text', 'template');
         cy.get('#never-evaluated').should('not.exist');
+    });
+});
+
+describe('HTML template engines', () => {
+    beforeEach(() => { cy.visit('/engines.html'); cy.get('#ready').should('have.text', 'Ready'); });
+    it('leaves prefetched engines and inert HTML bodies unexecuted', () => {
+        cy.get('#engine-output').should('be.empty');
+        cy.get('.inline-result, .native-result').should('not.exist');
+    });
+    it('counts cached Underscore renders and keeps false branches uncovered', () => {
+        cy.get('#render-underscore').click().click();
+        cy.get('.underscore-output strong').should('have.text', '<Title>');
+        cy.get('.underscore-output li').should('have.length', 2);
+    });
+    it('renders legacy jQuery conditions loops escaped values and nested templates', () => {
+        cy.get('#render-jquery').click();
+        cy.get('.jquery-output strong').should('have.text', '<Title>');
+        cy.get('.jquery-output li').should('have.length', 2);
+        cy.get('.jquery-output em').should('have.text', 'Trusted markup');
+        cy.get('.jquery-child').should('have.text', 'Nested child');
+    });
+    it('renders Magento literals and consumes inert HTML templates', () => {
+        cy.get('#render-literal').click();
+        cy.get('.literal-output').should('have.text', 'Magento literal');
+        cy.window().its('literalCalls').should('eq', 1);
+        cy.get('#render-inline').click();
+        cy.get('.inline-result').should('have.text', '<Title>');
+        cy.get('.native-result').should('have.text', 'Native HTML');
     });
 });

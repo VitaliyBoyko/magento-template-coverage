@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- Inventory all and only `.html` files under configured roots, independent of directory layout.
+- Add directory reports with breadcrumbs, aggregated line/statement/DOM totals and an optional searchable file list.
+- Measure Underscore/mage-template, legacy jQuery tmpl and Magento UI literal execution in HTML files.
+- Support inert template bodies stored inside HTML files, bare/default Magento bindings and SVG markup.
+- Keep malformed or server-only syntax visible with explicit DOM-only explanations; allow engine overrides.
+- Verify real engine output, cached/nested renders, escaping, false branches, directory totals and offline links.
+
+Recreate manifests, disposable copies and raw records. Source identities change; the JSON metric is now `template-execution` (schema 2).
+
 ## 1.0.0
 
 - Measure actual Knockout binding value evaluations in addition to template DOM presence.

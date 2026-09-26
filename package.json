@@ -1,7 +1,7 @@
 {
   "name": "@vitaliiboiko/magento-template-coverage",
-  "version": "1.0.0",
-  "description": "Knockout binding execution, source-line reports and DOM coverage for Magento templates",
+  "version": "1.1.0",
+  "description": "Directory and source-line execution reports for Magento HTML templates",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -52,6 +52,7 @@
     "parse5": "7.3.0"
   },
   "devDependencies": {
-    "knockout": "3.5.1"
+    "knockout": "3.5.1",
+    "underscore": "1.13.6"
   }
 }

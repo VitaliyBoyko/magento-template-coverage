@@ -34,13 +34,14 @@ test('Magento aliases, custom nodes and render defaults get the correct binding 
     assert.ok(result.statements.every(s => s.start.line > 0));
 });
 
-test('static markup and inert bodies are not executable lines; dynamic Underscore is explicit', () => {
+test('static markup has no execution denominator; inline templates and Underscore expressions are mapped', () => {
     const source = `<script type="text/html"><p data-bind="text: hidden"></p></script>
 <template><p data-bind="text: hidden"></p></template><p>Static</p>`;
-    assert.equal(analyzeStatements(source, id).statements.length, 0);
+    assert.equal(analyzeStatements(source, id).statements.length, 2);
+    assert.equal(analyzeStatements('<p>Static</p>', id).statements.length, 0);
     const underscore = analyzeStatements('<p data-bind="text: <%= expression %>"></p>', id);
-    assert.equal(underscore.statements.length, 0);
-    assert.match(underscore.executionUnsupported, /Underscore/);
+    assert.equal(underscore.statements.length, 1);
+    assert.equal(underscore.statements[0].syntax, 'underscore:interpolate');
     assert.throws(() => analyzeStatements('<p data-bind="text: x, text: y"></p>', id), /duplicate/);
 });
 

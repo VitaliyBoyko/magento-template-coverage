@@ -1,88 +1,21 @@
 # Magento template coverage
 
-Knockout binding execution and browser-template DOM coverage for isolated Magento
-test environments. Version **1.0.0** provides an npm CLI, source reports, and a Cypress adapter.
-It instruments disposable template copies; production code, Composer dependencies,
-and original templates do not need to change. No PHP helper is required.
+Coverage for **`.html` files** in Magento test environments. Version **1.1.0**
+provides directory reports, source-line execution counts, and separate DOM presence
+coverage. Originals stay untouched: instrument disposable copies and collect from Cypress.
 
 ## Install
 
-Install in your Cypress project:
-
 ```sh
-npm install --save-dev @vitaliiboiko/magento-template-coverage
+npm install --save-dev @vitaliiboiko/magento-template-coverage@1.1.0
 ```
 
-The CLI requires Node.js 18.3 or newer. The adapter runs inside an existing Cypress
-installation. Keep the package in test infrastructure and exclude its generated
-artifacts from version control and production deployments.
+Node.js 18.3+ and an existing Cypress installation are required.
 
-Upgrading from 0.1.0: recreate the manifest, disposable copies, static assets, and
-raw records. Version 1 uses **schema version 2**; older records and manifests are
-rejected. The inventory → instrument → collect → report commands stay the same.
+## Inventory → instrument → collect → report
 
-## What coverage means
-
-The CLI inventories templates beneath selected Magento roots and instruments
-browser HTML in `web/template/` and `web/templates/`. It measures three things:
-
-| Metric | What contributes a hit |
-| --- | --- |
-| Binding statements | Knockout evaluates a binding value accessor, such as `text`, `if`, `foreach`, `value`, `scope`, or `template`. |
-| Binding lines | A statement starting on this source line was evaluated. Multiple statements on one line share one line denominator. |
-| Template DOM presence | A template's source marker enters the document. This is independent of binding execution. |
-
-The report links to original source with line numbers, evaluation counts, and
-green/red/partial line highlighting. A statement list gives the binding name,
-syntax, source column, and count. Unloaded templates and bindings inside false
-conditions remain in the inventory with zero counts. Lines containing static
-markup or only continuation text are grey, not falsely counted as executable.
-
-**Binding evaluation is the measured execution unit.** Evaluating a `click`
-binding can register a handler without invoking its body. Evaluating `if: open`
-does not imply `open` was true. Callback bodies, individual JavaScript expression
-branches, successful binding completion, assertions, and visibility are not
-measured by this metric. Use Istanbul for application JavaScript.
-
-The package parses HTML and binding object literals with source offsets. It adds
-comments inside binding expressions in disposable copies. At runtime it wraps
-accessors after Knockout parses them, preserving generated two-way property
-writers, observable identity, return values, and single evaluation of expressions.
-RequireJS's `onResourceLoad` hook attaches before consumers receive Knockout;
-existing hooks are chained. No test needs to call application RequireJS modules.
-
-DOM observations survive navigation and merge across tests/shards. Hidden DOM
-counts; fetched, detached, and inert templates do not count as DOM observations.
-Actually applying Knockout bindings to a detached tree can still record binding
-execution. Record IDs prevent double-counting copied artifacts; source hashes and
-statement IDs reject stale data. Every new test resets execution counters,
-including retained pages with `testIsolation: false`.
-
-## Supported binding syntax
-
-- Knockout `data-bind` attributes, including multiple and multiline bindings,
-  object literals, regular expressions, quoted keys, and HTML entities.
-- Virtual `<!-- ko if: expression -->` and other `ko` comment bindings.
-- Magento nodes: `if`, `ifnot`, `each`, `with`, `text`, `scope`, `component`,
-  `render`, `translate`, `repeat`, and `fastForEach`.
-- Magento attributes: the standard renderer bindings, `if`, `ifnot`, `innerif`,
-  `innerifnot`, `each`, `outereach`, `render`, `ko-value`, `ko-checked`, `ko-style`,
-  `ko-disabled`, `ko-focused`, `ko-scope`, `translate`, `outerfasteach`, and
-  registered UI bindings such as `afterRender`, `bindHtml`, and `simple-checked`.
-
-Magento performs its normal shorthand conversion; instrumentation does not
-replace its renderer. Custom bindings work through `data-bind` and virtual KO
-syntax. Custom shorthand names must be added to the package's source mapping.
-Bindings whose preprocessors rename/remove the declaration are rejected when
-they cannot be mapped (the standard `textinput` alias is supported).
-
-## Prepare an isolated Magento copy
-
-First prepare a disposable Magento environment using your normal test runner.
-The example below assumes the original Magento root is `src` and its disposable
-`app/code` and `app/design` copies live under `coverage/template-copy`.
-Run the CLI from the directory where the npm package is installed; adjust paths
-to match your source and copies.
+Inventory every `.html` file under the selected roots, regardless of directory name.
+The defaults are `app/code` and `app/design`. PHP, `.phtml`, `.htm`, and JS files are excluded.
 
 ```sh
 npx --no-install magento-template-coverage inventory \
@@ -94,70 +27,98 @@ npx --no-install magento-template-coverage instrument \
   --map app/design=coverage/template-copy/app-design
 ```
 
-The default inventory roots are `app/code` and `app/design`. Use repeated `--root`
-arguments to select different roots, and provide corresponding `--map` arguments.
-The instrument command writes only supported HTML files. The caller prepares the
-rest of the application and configures the test server to use these copies.
+Serve those disposable copies using your test environment and refresh Magento's
+static assets and caches. The CLI rejects source-tree writes, symlinks, overlapping
+destinations and changed source hashes. Repeated instrumentation starts from originals.
+Use repeated `--root` and matching `--map` arguments to select other source directories.
 
-Instrumentation refuses destinations inside the original Magento tree, symlinked
-or overlapping destinations, and inputs changed since inventory. It never edits
-source templates in place. Repeating it starts from the original source and does
-not stack markers. IDs contain a source-path/content hash, so theme overrides
-remain distinct and stale hits are rejected. Use fresh static assets and caches.
-
-## Collect in Cypress
-
-Register once in your coverage-enabled Cypress support file:
+Register the Cypress adapter before visiting the application:
 
 ```js
 const { registerTemplateCoverage } = require('@vitaliiboiko/magento-template-coverage/cypress');
-
 registerTemplateCoverage({ outputDir: '.template-coverage' });
 ```
 
-Each test writes a uniquely named `.mtc` file. Files contain JSON but deliberately
-use a separate extension so they can share an artifact volume with Istanbul
-without being mistaken for JavaScript coverage maps. For parallel runs, use a
-separate output directory or volume per shard and gather them beneath a common
-directory. Preserve the manifest produced for that run alongside the records.
-
-Generate a standalone HTML and JSON report:
+After Cypress:
 
 ```sh
 npx --no-install magento-template-coverage report \
   --manifest coverage/template-manifest.json \
-  --hits .template-coverage \
-  --output coverage/templates
+  --hits .template-coverage --output coverage/templates
 ```
 
-`--hits` is searched recursively. The report contains every inventoried template,
-including those no test loaded. Supported browser templates with no observations
-are uncovered. Other template types are listed as unsupported and excluded from
-the percentage. With no collected records, the report explicitly identifies
-itself as an inventory baseline, not a completed coverage run.
+Open **`coverage/templates/index.html`**. Directories have aggregated totals and
+breadcrumb navigation, like a PHP coverage report. Each file links to its original
+source with green/red/partial lines and statement counts. `all.html` provides a
+searchable flat list. Every page works offline. `coverage-summary.json` includes
+file and directory totals; directory percentages use summed covered/total counts.
 
-## Coverage boundaries
+## HTML template syntax
 
-- The denominator includes all physical browser templates in the selected roots,
-  including inactive modules, Admin templates, and overridden templates. Active
-  theme/store/locale applicability and vendor fallback are not resolved yet.
-  Symlinked source trees are rejected rather than silently skipped.
-- PHP `.phtml` files, email templates, and other HTML outside browser template
-  directories are inventoried as unsupported. Continue using PCOV for PHP
-  execution coverage. Database CMS/email content is not inventoried.
-- Page Builder browser templates require Admin authoring tests. Viewing previously
-  saved storefront content does not show that an authoring template ran.
-- Inline templates in PHP/JS, shadow roots, child frames/cross-origin pages,
-  visibility, condition outcomes, and sanitizers/minifiers that strip comments
-  are outside this release's scope. Underscore templates receive DOM coverage
-  only and are explicitly labelled; their generated bindings cannot be mapped
-  reliably to original source statements.
-- Automatic binding execution collection supports the standard Knockout 3.5
-  binding provider loaded through RequireJS. Register Cypress support before
-  navigation. Custom binding providers without `parseBindingsString` and
-  application code that replaces the provider after startup need explicit integration.
-- Old cached, uninstrumented HTML cannot emit markers. DOM observation introduces
-  overhead during coverage runs. Keep source-path reports in test artifacts.
+| Syntax inside `.html` | Execution measured |
+| --- | --- |
+| Knockout `data-bind` and virtual `ko` comments | Binding value accessor evaluations; two-way property writers are preserved. |
+| Magento UI shorthand | Standard renderer attributes and nodes, including `if`, `each`, `render`, `translate`, `ko-value`, and bare/default bindings. |
+| Underscore / `mage/template` | `<%= … %>`, `<%- … %>`, and expressions in `<% … %>` code: conditions, loops, assignments, initializers, returns, and nested function bodies. |
+| Legacy jQuery tmpl | `${…}`, `{{= …}}`, `if`, `else`, `each`, `html`, `tmpl`, and `wrap`. The normal engine still handles escaping, function invocation and nested templates. |
+| Magento UI literals | `${ $.expression }`, including nested JavaScript expressions. |
+| Plain HTML | DOM presence; static markup has no executable-line denominator. |
+| Template bodies in an HTML file | Supported `<script type="text/html">`, `text/x-magento-template`, `text/x-jquery-tmpl`, `text/x-template`, and native `<template>` bodies remain unexecuted until consumed. |
+
+The adapter installs counters before application code runs. Knockout and jQuery
+integration attaches through RequireJS; application tests do not need to require
+engines themselves. The legacy jQuery plugin is **not installed into your application**
+by this package. The browser harness tests its pinned upstream implementation.
+
+Automatic detection recognizes Underscore and jQuery directives. `${ $.… }` selects
+Magento literals; other `${…}` selects jQuery tmpl. For ambiguous syntax, override
+an exact file or directory prefix during inventory; the most specific prefix wins:
+
+```sh
+npx --no-install magento-template-coverage inventory \
+  --source src --manifest coverage/template-manifest.json \
+  --engine app/code/Example/Module/view/frontend/web/fragments=literal
+```
+
+Available engines: `auto`, `knockout`, `underscore`, `jquery-tmpl`, `literal`, `html`.
+Choose `html` for DOM-only coverage. Unrecognized/malformed binding expressions in
+automatic mode are retained with a visible DOM-only explanation. Explicit engine
+selections fail on syntax errors. Server-rendered email directives also retain DOM-only
+coverage; sending an email does not produce browser coverage.
+
+## Reading the numbers
+
+**Executable lines** are distinct starting source lines of measured expressions or
+directives. **Statements** count those individual expressions/directives. Static text,
+continuation lines and non-expression JavaScript statements have no execution denominator.
+A Knockout `click` hit records binding evaluation, not callback invocation. An `if`
+hit does not prove its condition was true; jQuery `else` counts branch entry. Dynamic
+bindings generated by another expression are not assigned invented Knockout source locations.
+
+**DOM presence** is independent: the source marker entered the tested document.
+Hidden DOM counts; fetched files, detached caches and inert template bodies alone do
+not count. Compiling a template without rendering it produces no execution hits.
+Rendering a detached fragment can produce execution hits without DOM presence.
+
+All physical `.html` files under the selected roots remain in the denominator,
+including unused files. Module/theme applicability is not inferred. PHP rendering,
+inline templates in PHP/JS files, database content, shadow roots, child frames, and
+arbitrary third-party languages are outside the execution metric. Comments stripped
+by minifiers/sanitizers can prevent DOM observation. Use Istanbul for application JS
+and PCOV for PHP.
+
+## Repeat runs and upgrades
+
+Use fresh manifests, disposable copies, static assets and raw records for each run.
+Version 1.1 changes source identities; recreate 1.0 artifacts. JSON retains schema
+version 2 with expanded expression syntax and directory summaries. Hits from old
+source identities are rejected. The metric is now named `template-execution`.
+
+Each test writes a unique `.mtc` record. Counters reset between tests, including
+retained documents; observations survive navigation. Reports recursively merge shard
+records and deduplicate copied record IDs. Stale IDs, conflicting records and invalid
+counts fail the report. No records produces an explicitly labelled inventory baseline.
+Keep generated artifacts and this package in test infrastructure.
 
 ## Package development
 
@@ -167,18 +128,8 @@ npm run test:browser -- /path/to/magento /path/to/cypress/node_modules/cypress
 npm pack --dry-run
 ```
 
-The browser harness starts a temporary HTTP fixture server and runs headless
-Electron (or set `CYPRESS_BROWSER=chrome`). It reads the supplied checkout's real Magento template loader/renderer,
-Knockout, `mage/template`, and stock modal template. It neither boots Magento nor
-accesses a database, and does not copy Magento code into the published package.
-The exact collected source IDs, binding hits, false-body zeros, two-way writes,
-conditional rerenders, and retained-page counter resets are checked after the tests.
-
-Browser test artifacts default to `coverage/browser`; pass a third positional
-argument after the Cypress module path to change that directory. These tests
-validate the browser fixture, not a full Magento checkout flow.
-
-The published tarball contains only `bin/`, `lib/`, `cypress/`, this README, and
-package metadata. `npm publish` runs the unit tests before publishing. The adapter
-uses standard Cypress lifecycle events and DOM APIs without calling RequireJS
-modules from Cypress tests.
+The browser harness uses the supplied Magento checkout's real Knockout, renderer,
+Underscore, `mage/template`, UI literal renderer and modal HTML. It fetches the legacy
+jQuery engine at the revision and SHA-256 in `test/browser/engines-lock.json`, cached
+in browser artifacts. It never modifies the Magento checkout. Tests assert exact
+source IDs, real counters, false-body zeros, cached rerenders and unchanged rendering.

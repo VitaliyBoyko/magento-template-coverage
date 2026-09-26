@@ -1,0 +1,8 @@
+<section class="underscore-output">
+<% if (data.visible) { %>
+<strong><%- data.title %></strong>
+<% } else { %>
+<span><%= data.neverExecuted() %></span>
+<% } %>
+<ul><% data.items.forEach(function(item) { %><li><%= item %></li><% }); %></ul>
+</section>

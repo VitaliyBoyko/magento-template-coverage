@@ -1,0 +1,10 @@
+<section class="jquery-output">
+{{if visible}}
+<strong>${title}</strong>
+{{else}}
+<span>${neverExecuted()}</span>
+{{/if}}
+<ul>{{each(i, item) items}}<li>${item}</li>{{/each}}</ul>
+<div>{{html raw}}</div>
+{{tmpl(child) "child"}}
+</section>

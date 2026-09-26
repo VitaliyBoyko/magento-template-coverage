@@ -13,6 +13,7 @@ function main() {
             source: { type: 'string' },
             root: { type: 'string', multiple: true },
             map: { type: 'string', multiple: true },
+            engine: { type: 'string', multiple: true },
             manifest: { type: 'string' },
             hits: { type: 'string' },
             output: { type: 'string' },
@@ -21,12 +22,14 @@ function main() {
     });
     if (values.help || !positionals.length) {
         console.log(`Magento template execution coverage
-  inventory --source <Magento> --manifest <file> [--root app/code --root app/design]
+  inventory --source <Magento> --manifest <file> [--root app/code --root app/design] [--engine path=jquery-tmpl]
   instrument --source <Magento> --manifest <file> --map app/code=<copy> --map app/design=<copy>
   report --manifest <file> --hits <shard-directory> --output <report-directory>
 
 Instrumentation only writes outside the original Magento tree. Reports measure
-Knockout binding statements, their starting source lines, and separate template DOM presence.`);
+template expressions/bindings, their starting source lines, and separate DOM presence.
+Engines: auto, knockout, underscore, jquery-tmpl, literal, html. Overrides match a file
+or directory prefix; the most specific match wins.`);
         return;
     }
     const command = positionals[0];
@@ -36,7 +39,14 @@ Knockout binding statements, their starting source lines, and separate template 
     if (!required || positionals.length !== 1) throw new Error(`Unknown command: ${positionals.join(' ')}`);
     for (const option of required) if (!values[option]) throw new Error(`Missing --${option}`);
     if (command === 'inventory') {
-        const manifest = createManifest({ source: values.source, roots: values.root });
+        const engines = {};
+        for (const mapping of values.engine || []) {
+            const index = mapping.indexOf('=');
+            const name = mapping.slice(0, index);
+            if (index < 1 || Object.hasOwn(engines, name)) throw new Error(`Invalid or duplicate --engine: ${mapping}`);
+            engines[name] = mapping.slice(index + 1);
+        }
+        const manifest = createManifest({ source: values.source, roots: values.root, engines });
         fs.mkdirSync(path.dirname(values.manifest), { recursive: true });
         fs.writeFileSync(values.manifest, `${JSON.stringify(manifest, null, 2)}\n`);
         console.log(`Inventoried ${manifest.templates.length} files; ${manifest.templates.filter(entry => entry.instrumented).length} browser templates.`);
@@ -55,7 +65,7 @@ Knockout binding statements, their starting source lines, and separate template 
         } else {
             const report = merge(manifest, readRecords(values.hits));
             writeReport(report, values.output);
-            console.log(`Binding execution: ${report.lines.covered}/${report.lines.total} lines; ${report.statements.covered}/${report.statements.total} statements.`);
+            console.log(`Template execution: ${report.lines.covered}/${report.lines.total} lines; ${report.statements.covered}/${report.statements.total} statements.`);
             console.log(`Template DOM coverage: ${report.summary.covered}/${report.summary.eligible}; ${report.summary.unsupported} unsupported. Report: ${path.join(values.output, 'index.html')}`);
         }
     }

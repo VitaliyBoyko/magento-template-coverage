@@ -5,6 +5,7 @@ const path = require('node:path');
 const http = require('node:http');
 const os = require('node:os');
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const { createManifest, instrument, merge, readRecords, writeReport } = require('../../lib');
 
 // Read dependencies from a supplied Magento checkout without booting or changing it.
@@ -35,7 +36,9 @@ async function main() {
         transient: '<div id="transient-content">Removed in the same event loop turn</div>',
         row: '<tr id="table-row"><td>Table fragment</td></tr>',
         hidden: '<div hidden>Attached but hidden: this metric is DOM presence</div>',
-        bindings: fs.readFileSync(path.join(__dirname, 'bindings.html'), 'utf8')
+        bindings: fs.readFileSync(path.join(__dirname, 'bindings.html'), 'utf8'),
+        ...Object.fromEntries(['underscore', 'jquery', 'jquery-child', 'literal', 'inline'].map(name =>
+            [name, fs.readFileSync(path.join(__dirname, `${name}.html`), 'utf8')]))
     };
     const modalPath = 'app/design/frontend/example/theme/Magento_Ui/web/templates/modal/modal-popup.html';
     fs.mkdirSync(path.join(source, root), { recursive: true });
@@ -55,9 +58,20 @@ async function main() {
     const hits = path.join(output, `hits-${Date.now()}`);
     fs.mkdirSync(hits);
 
+    const engineLock = require('./engines-lock.json');
+    const cache = path.join(output, 'jquery.tmpl.js');
+    if (!fs.existsSync(cache)) {
+        const response = await fetch(engineLock.url);
+        if (!response.ok) throw new Error(`Cannot fetch pinned jQuery template engine: ${response.status}`);
+        fs.writeFileSync(cache, Buffer.from(await response.arrayBuffer()));
+    }
+    const jqueryTmpl = fs.readFileSync(cache);
+    assert.equal(createHash('sha256').update(jqueryTmpl).digest('hex'), engineLock.sha256, 'Pinned jQuery template engine changed');
+    const engineApp = fs.readFileSync(path.join(__dirname, 'engines-app.js'), 'utf8');
     const app = `
 require.config({baseUrl:'/lib',paths:{ko:'knockoutjs/knockout',text:'requirejs/text',Magento_Ui:'/ui','Application_Blog/template':'/templates'}});
 require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/renderer'],function($,ko,mageTemplate,renderer){
+    ko.bindingHandlers.fixtureDefault={init:function(node,value){node.textContent=String(value());}};ko.bindingHandlers.collapsible=ko.bindingHandlers.fixtureDefault;renderer.addAttribute('collapsible');
     Promise.all(['root','nested','prefetched','detached','transient','row','hidden','modal','bindings'].map(function(name){
         return fetch('/templates/'+name+'.html').then(function(res){return res.text();}).then(function(html){return [name,html];});
     })).then(async function(entries){
@@ -87,6 +101,9 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
         try {
             const url = new URL(req.url, `http://${req.headers.host}`);
             if (url.pathname === '/' || url.pathname === '/bindings.html') { res.setHeader('Content-Type', 'text/html'); res.end(page); return; }
+            if (url.pathname === '/engines.html') { res.setHeader('Content-Type', 'text/html'); res.end(page.replace('/app.js', '/engines-app.js')); return; }
+            if (url.pathname === '/engines-app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(engineApp); return; }
+            if (url.pathname === '/jquery.tmpl.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(jqueryTmpl); return; }
             if (url.pathname === '/app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(app); return; }
             if (url.pathname === '/second.html') {
                 res.setHeader('Content-Type', 'text/html');
@@ -134,7 +151,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
                 }
             }
         });
-        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 8 || result.totalPassed !== 8) {
+        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 12 || result.totalPassed !== 12) {
             throw new Error(`Browser fixture failed: ${result.message || `${result.totalFailed} failures`}`);
         }
         const records = readRecords(hits);
@@ -148,9 +165,13 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
             'initializes the retained document': ['root'],
             'observes a retained document without navigation': ['root', 'nested'],
             'leaves false conditional bodies and empty loops uncovered': ['bindings'],
-            'preserves writes and measures Magento shorthand and conditional rerenders': ['bindings', 'nested']
+            'preserves writes and measures Magento shorthand and conditional rerenders': ['bindings', 'nested'],
+            'leaves prefetched engines and inert HTML bodies unexecuted': ['inline'],
+            'counts cached Underscore renders and keeps false branches uncovered': ['inline', 'underscore'],
+            'renders legacy jQuery conditions loops escaped values and nested templates': ['inline', 'jquery', 'jquery-child'],
+            'renders Magento literals and consumes inert HTML templates': ['inline', 'literal']
         };
-        assert.equal(records.length, 8);
+        assert.equal(records.length, 12);
         for (const [title, names] of Object.entries(expectations)) assert.deepEqual(byTitle(title)?.ids, ids(names), title);
         const bindingEntry = manifest.templates.find(entry => entry.path === templatePaths.bindings);
         const baseline = byTitle('leaves false conditional bodies and empty loops uncovered').hits[bindingEntry.id];
@@ -169,8 +190,24 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
         const rootEntry = manifest.templates.find(entry => entry.path === templatePaths.root);
         assert.equal(retained.hits[rootEntry.id]?.[rootEntry.statements.find(s => s.binding === 'click').id] || 0, 1,
             'Retained-page click accessor is evaluated by the click, not inherited from the preceding test');
+        const engineEntry = name => manifest.templates.find(entry => entry.path === templatePaths[name]);
+        const inactive = byTitle('leaves prefetched engines and inert HTML bodies unexecuted');
+        for (const name of ['underscore', 'jquery', 'jquery-child', 'literal', 'inline']) {
+            assert.equal(Object.keys(inactive.hits[engineEntry(name).id] || {}).length, 0, `Fetched/inert ${name} had execution hits`);
+        }
+        for (const [name, title] of Object.entries({ underscore: 'counts cached Underscore renders and keeps false branches uncovered', jquery: 'renders legacy jQuery conditions loops escaped values and nested templates', literal: 'renders Magento literals and consumes inert HTML templates' })) {
+            const entry = engineEntry(name), counters = byTitle(title).hits[entry.id];
+            assert.ok(counters && Object.values(counters).some(n => n > 0), `${name} has no execution`);
+            for (const statement of entry.statements) {
+                const line = entry.source.split('\n')[statement.start.line - 1];
+                if (line.includes('neverExecuted')) assert.equal(counters[statement.id] || 0, 0, `${name}: false body counted`);
+            }
+        }
+        assert.ok(Object.values(byTitle('counts cached Underscore renders and keeps false branches uncovered').hits[engineEntry('underscore').id]).some(n => n === 2));
+        const inlineHits = byTitle('renders Magento literals and consumes inert HTML templates').hits[engineEntry('inline').id];
+        assert.ok(inlineHits && Object.keys(inlineHits).length === engineEntry('inline').statements.length);
         const report = merge(manifest, records);
-        assert.equal(report.summary.covered, 8);
+        assert.equal(report.summary.covered, 13);
         assert.equal(report.summary.uncovered, 3);
         assert.ok(report.lines.covered > 0 && report.lines.covered < report.lines.total);
         writeReport(report, path.join(output, 'report'));
