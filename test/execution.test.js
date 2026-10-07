@@ -118,6 +118,20 @@ test('navigation reattaches to a new document behind the same WindowProxy', () =
     } finally { ko.bindingProvider.instance.parseBindingsString = original; }
 });
 
+test('reconnecting to the same document restores a deleted execution helper', () => {
+    const win = { document: {} };
+    const first = [];
+    const second = [];
+    observeExecution(win, (...hit) => first.push(hit));
+    const original = win.__mtcTemplateHit;
+    delete win.__mtcTemplateHit;
+    observeExecution(win, (...hit) => second.push(hit));
+    assert.equal(win.__mtcTemplateHit, original);
+    win.__mtcTemplateHit(id, '0');
+    assert.deepEqual(first, []);
+    assert.deepEqual(second, [[id, '0']]);
+});
+
 test('UTF-8 custom binding names retain their accessor identity', () => {
     const ko = require('knockout');
     const original = ko.bindingProvider.instance.parseBindingsString;

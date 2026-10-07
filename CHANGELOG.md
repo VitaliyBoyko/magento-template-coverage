@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- Let instrumented Underscore and Magento literal templates render safely while the execution collector is unavailable.
+- Restore a deleted execution helper when Cypress reconnects to a retained document.
+
 ## 1.1.0
 
 - Inventory all and only `.html` files under configured roots, independent of directory layout.

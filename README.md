@@ -1,13 +1,13 @@
 # Magento template coverage
 
-Coverage for **`.html` files** in Magento test environments. Version **1.1.0**
+Coverage for **`.html` files** in Magento test environments. Version **1.1.1**
 provides directory reports, source-line execution counts, and separate DOM presence
 coverage. Originals stay untouched: instrument disposable copies and collect from Cypress.
 
 ## Install
 
 ```sh
-npm install --save-dev @vitaliiboiko/magento-template-coverage@1.1.0
+npm install --save-dev @vitaliiboiko/magento-template-coverage@1.1.1
 ```
 
 Node.js 18.3+ and an existing Cypress installation are required.

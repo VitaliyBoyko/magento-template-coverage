@@ -50,11 +50,18 @@ describe('retained document', { testIsolation: false }, () => {
     it('initializes the retained document', () => {
         cy.visit('/');
         cy.get(selectors.ready).should('have.text', 'Ready');
+        cy.window().then(win => {
+            delete win.__mtcTemplateHit;
+            expect(win.__mtcTemplateHit).to.equal(undefined);
+        });
     });
 
-    it('observes a retained document without navigation', () => {
+    it('restores a deleted helper on a retained document', () => {
+        cy.window().its('__mtcTemplateHit').should('be.a', 'function');
         cy.get(selectors.openPanel).click();
         cy.get(selectors.panel).should('be.visible');
+        cy.get(selectors.openModal).click();
+        cy.get(selectors.modal).should('be.visible').and('contain.text', 'Application modal');
     });
 });
 

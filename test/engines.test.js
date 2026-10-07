@@ -50,6 +50,16 @@ function twice(x) { if (x) return x * 2; return 0; }
     assert.equal(renderUnderscore(source, { on: false }).rendered, '-2');
 });
 
+test('instrumented Underscore templates render without the execution helper', () => {
+    const source = '<strong><%= data.name %></strong>';
+    const result = analyzeStatements(source, id);
+    const compiled = _.template(result.content).source;
+    const rendered = vm.runInNewContext(`(${compiled})({data})`, {
+        _, data: { name: 'Available' }, window: {}
+    });
+    assert.equal(rendered, '<strong>Available</strong>');
+});
+
 test('template literal expressions keep nested braces, newlines and side effects', () => {
     const source = '<p>${ $.read({key: "value"}) }</p>\n<b>${ $.show ? $.name : "hidden" }</b>';
     const result = analyzeStatements(source, id), hits = [];
@@ -59,6 +69,15 @@ test('template literal expressions keep nested braces, newlines and side effects
     assert.equal(data.calls, 1);
     assert.equal(hits.length, 2);
     assert.deepEqual(result.statements.map(s => s.start.line), [1, 2]);
+});
+
+test('instrumented Magento literal templates render without the execution helper', () => {
+    const source = '<strong>${ $.name }</strong>';
+    const result = analyzeStatements(source, id, 'literal');
+    const rendered = vm.runInNewContext('`' + result.content + '`', {
+        $: { name: 'Available' }, window: {}
+    });
+    assert.equal(rendered, '<strong>Available</strong>');
 });
 
 test('jQuery directives retain expressions and only add execution tags at reachable locations', () => {

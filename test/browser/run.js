@@ -163,7 +163,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
             'retains observations across real page navigation': ['root', 'nested', 'second'],
             'handles table fragments, hidden content and immediate removal': ['root', 'transient', 'row', 'hidden'],
             'initializes the retained document': ['root'],
-            'observes a retained document without navigation': ['root', 'nested'],
+            'restores a deleted helper on a retained document': ['root', 'nested', 'modal'],
             'leaves false conditional bodies and empty loops uncovered': ['bindings'],
             'preserves writes and measures Magento shorthand and conditional rerenders': ['bindings', 'nested'],
             'leaves prefetched engines and inert HTML bodies unexecuted': ['inline'],
@@ -186,7 +186,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
             else assert.ok(exercised[statement.id] > 0, `Missing binding execution: ${line} (${statement.binding})`);
         }
         assert.ok(Object.values(exercised).some(count => count > 1), 'Repeated evaluation was not counted');
-        const retained = byTitle('observes a retained document without navigation');
+        const retained = byTitle('restores a deleted helper on a retained document');
         const rootEntry = manifest.templates.find(entry => entry.path === templatePaths.root);
         assert.equal(retained.hits[rootEntry.id]?.[rootEntry.statements.find(s => s.binding === 'click').id] || 0, 1,
             'Retained-page click accessor is evaluated by the click, not inherited from the preceding test');
