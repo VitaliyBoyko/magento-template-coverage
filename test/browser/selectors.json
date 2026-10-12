@@ -10,5 +10,7 @@
   "transientContent": "#transient-content",
   "table": "#insert-row",
   "row": "#table-row",
-  "hidden": "#insert-hidden"
+  "hidden": "#insert-hidden",
+  "legacyToggle": "#legacy-section-head",
+  "legacyContent": "#legacy-content"
 }

@@ -120,6 +120,11 @@ records and deduplicate copied record IDs. Stale IDs, conflicting records and in
 counts fail the report. No records produces an explicitly labelled inventory baseline.
 Keep generated artifacts and this package in test infrastructure.
 
+Cross-window collection runs its DOM observer in the application's JavaScript realm
+so it preserves Prototype's DOM extensions. Initializing it from Cypress uses the
+application's `Function` constructor and requires its CSP to permit dynamic code
+evaluation, as Magento's legacy and template engines do.
+
 ## Package development
 
 ```sh

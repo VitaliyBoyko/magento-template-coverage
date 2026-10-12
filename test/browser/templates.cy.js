@@ -1,5 +1,19 @@
 const selectors = require('./selectors.json');
 
+describe('legacy admin compatibility', () => {
+    it('preserves Prototype DOM extensions when observation starts before the legacy bundle', () => {
+        cy.visit('/');
+        cy.get(selectors.ready).should('have.text', 'Ready');
+        cy.visit('/legacy.html');
+        cy.get(selectors.ready).should('have.text', 'Ready');
+        cy.get(selectors.legacyContent).should('be.visible');
+        cy.get(selectors.legacyToggle).click();
+        cy.get(selectors.legacyContent).should('not.be.visible');
+        cy.get(selectors.legacyToggle).click();
+        cy.get(selectors.legacyContent).should('be.visible');
+    });
+});
+
 describe('browser template coverage', () => {
     it('ignores fetched, detached, unused and inert nested templates', () => {
         cy.visit('/');

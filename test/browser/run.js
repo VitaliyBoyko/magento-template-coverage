@@ -36,6 +36,7 @@ async function main() {
         transient: '<div id="transient-content">Removed in the same event loop turn</div>',
         row: '<tr id="table-row"><td>Table fragment</td></tr>',
         hidden: '<div hidden>Attached but hidden: this metric is DOM presence</div>',
+        legacy: '<div id="legacy-content">Legacy admin content</div>',
         bindings: fs.readFileSync(path.join(__dirname, 'bindings.html'), 'utf8'),
         ...Object.fromEntries(['underscore', 'jquery', 'jquery-child', 'literal', 'inline'].map(name =>
             [name, fs.readFileSync(path.join(__dirname, `${name}.html`), 'utf8')]))
@@ -96,10 +97,35 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
 <button id="insert-transient">Insert and remove</button><button id="insert-row">Insert table row</button><button id="insert-hidden">Insert hidden content</button>
 <table><tbody id="table-body"></tbody></table><div id="hidden-host"></div><a id="next-page" href="/second.html">Next page</a>
 <script src="/lib/requirejs/require.js"></script><script src="/app.js"></script></body></html>`;
+    // The collector sees these elements before Prototype extends the application's
+    // HTMLElement prototype, just as it does on Magento admin configuration pages.
+    const legacyPage = `<!doctype html><html><head><title>Legacy admin fixture</title></head><body>
+<div id="ready">Loading</div><div class="section-config">
+<button id="legacy-section-head">Toggle legacy section</button>
+<input type="hidden" id="legacy-section-state" value="1">
+<div id="legacy-section">${fs.readFileSync(path.join(copy, templatePaths.legacy), 'utf8')}</div></div>
+<script src="/lib/legacy-build.min.js" defer></script><script src="/legacy-app.js" defer></script>
+</body></html>`;
+    const legacyApp = `
+Fieldset.applyCollapse('legacy-section');
+document.getElementById('legacy-section-head').onclick = function () {
+    Fieldset.toggleCollapse('legacy-section');
+};
+document.getElementById('ready').textContent = 'Ready';`;
 
     const server = http.createServer((req, res) => {
         try {
             const url = new URL(req.url, `http://${req.headers.host}`);
+            if (url.pathname === '/legacy.html') {
+                res.setHeader('Content-Type', 'text/html');
+                const scripts = legacyPage.indexOf('<script');
+                res.write(legacyPage.slice(0, scripts));
+                // Large Magento admin responses arrive in chunks. Let the DOM
+                // observer process markup before the legacy scripts arrive.
+                setTimeout(() => res.end(legacyPage.slice(scripts)), 50);
+                return;
+            }
+            if (url.pathname === '/legacy-app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(legacyApp); return; }
             if (url.pathname === '/' || url.pathname === '/bindings.html') { res.setHeader('Content-Type', 'text/html'); res.end(page); return; }
             if (url.pathname === '/engines.html') { res.setHeader('Content-Type', 'text/html'); res.end(page.replace('/app.js', '/engines-app.js')); return; }
             if (url.pathname === '/engines-app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(engineApp); return; }
@@ -138,7 +164,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
         const result = await require(cypressModule).run({
             project: path.resolve(__dirname, '../..'),
             configFile: 'test/browser/cypress.config.js',
-            browser: process.env.CYPRESS_BROWSER || 'electron',
+            browser: process.env.CYPRESS_BROWSER || 'chrome',
             config: {
                 video: false,
                 screenshotOnRunFailure: false,
@@ -151,13 +177,14 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
                 }
             }
         });
-        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 12 || result.totalPassed !== 12) {
+        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 13 || result.totalPassed !== 13) {
             throw new Error(`Browser fixture failed: ${result.message || `${result.totalFailed} failures`}`);
         }
         const records = readRecords(hits);
         const byTitle = title => records.find(record => record.test.at(-1) === title);
         const ids = names => names.map(name => manifest.templates.find(entry => entry.path === templatePaths[name]).id).sort();
         const expectations = {
+            'preserves Prototype DOM extensions when observation starts before the legacy bundle': ['root', 'legacy'],
             'ignores fetched, detached, unused and inert nested templates': ['root'],
             'tracks nested Knockout, cached rerenders and the real Magento modal': ['root', 'nested', 'modal'],
             'retains observations across real page navigation': ['root', 'nested', 'second'],
@@ -171,7 +198,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
             'renders legacy jQuery conditions loops escaped values and nested templates': ['inline', 'jquery', 'jquery-child'],
             'renders Magento literals and consumes inert HTML templates': ['inline', 'literal']
         };
-        assert.equal(records.length, 12);
+        assert.equal(records.length, 13);
         for (const [title, names] of Object.entries(expectations)) assert.deepEqual(byTitle(title)?.ids, ids(names), title);
         const bindingEntry = manifest.templates.find(entry => entry.path === templatePaths.bindings);
         const baseline = byTitle('leaves false conditional bodies and empty loops uncovered').hits[bindingEntry.id];
@@ -207,7 +234,7 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
         const inlineHits = byTitle('renders Magento literals and consumes inert HTML templates').hits[engineEntry('inline').id];
         assert.ok(inlineHits && Object.keys(inlineHits).length === engineEntry('inline').statements.length);
         const report = merge(manifest, records);
-        assert.equal(report.summary.covered, 13);
+        assert.equal(report.summary.covered, 14);
         assert.equal(report.summary.uncovered, 3);
         assert.ok(report.lines.covered > 0 && report.lines.covered < report.lines.total);
         writeReport(report, path.join(output, 'report'));

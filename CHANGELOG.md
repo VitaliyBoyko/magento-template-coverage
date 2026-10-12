@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- Run DOM observation and traversal in the application window's JavaScript realm, preserving Prototype DOM extensions on Magento admin pages during Cypress coverage.
+- Verify legacy Magento fieldset interaction and template markers alongside the existing rendering and execution coverage regressions.
+
 ## 1.1.1
 
 - Let instrumented Underscore and Magento literal templates render safely while the execution collector is unavailable.
