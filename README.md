@@ -1,21 +1,19 @@
 # Magento template coverage
 
-Coverage for **`.html` files** in Magento test environments. Version **1.1.1**
-provides directory reports, source-line execution counts, and separate DOM presence
-coverage. Originals stay untouched: instrument disposable copies and collect from Cypress.
+Coverage for Magento HTML templates and Alpine directives in Hyvä PHTML. Supports Cypress and Playwright collection with Luma/Knockout and regular Hyvä/Alpine 3. Reports separate executable source lines from DOM presence. Originals stay untouched; only disposable copies are instrumented.
 
 ## Install
 
 ```sh
-npm install --save-dev @vitaliiboiko/magento-template-coverage@1.1.1
+npm install --save-dev @vitaliiboiko/magento-template-coverage@1.2.0
 ```
 
-Node.js 18.3+ and an existing Cypress installation are required.
+Node.js 18.3+ and an existing Cypress or Playwright installation are required. Each test runner retains its own Node/browser requirements.
 
 ## Inventory → instrument → collect → report
 
 Inventory every `.html` file under the selected roots, regardless of directory name.
-The defaults are `app/code` and `app/design`. PHP, `.phtml`, `.htm`, and JS files are excluded.
+The defaults are `app/code` and `app/design`. PHTML containing Alpine directives is also inventoried; ordinary PHP/PHTML, `.htm`, and JS files are excluded from this browser metric. PHP execution is still measured separately with PCOV.
 
 ```sh
 npx --no-install magento-template-coverage inventory \
@@ -39,7 +37,33 @@ const { registerTemplateCoverage } = require('@vitaliiboiko/magento-template-cov
 registerTemplateCoverage({ outputDir: '.template-coverage' });
 ```
 
-After Cypress:
+For Playwright, extend your existing test fixture before using its `page` or `context`:
+
+```js
+const {test: base, expect} = require('@playwright/test');
+const {withTemplateCoverage} = require('@vitaliiboiko/magento-template-coverage/playwright');
+const test = withTemplateCoverage(base, {outputDir: '.template-coverage'});
+module.exports = {test, expect};
+```
+
+Coverage starts before application navigation, including navigation in other fixtures. Records preserve hits across documents, frames and explicitly closed pages. Every test/context has independent counters; fixture teardown writes records even after assertion failures. Parallel workers write unique files that the reporter can merge.
+
+For standalone Playwright scripts, call `await registerTemplateCoverage(context, options)` from the `/playwright` export **before creating pages**, then `await collector.stop()` in `finally`, before closing the context. `collector.flush()` drains currently open pages. Abrupt browser/process termination cannot guarantee final records.
+
+To integrate [elgentos/magento2-playwright](https://github.com/elgentos/magento2-playwright), extend both existing fixtures in its customization layer; keep its authentication, consent and setup configuration:
+
+```ts
+// tests/utils/fixtures.utils.ts
+import {test as baseTest, guestTest as baseGuest} from '@base/utils/fixtures.utils';
+import {withTemplateCoverage} from '@vitaliiboiko/magento-template-coverage/playwright';
+export * from '@base/utils/fixtures.utils';
+export const test = withTemplateCoverage(baseTest);
+export const guestTest = withTemplateCoverage(baseGuest);
+```
+
+Instrument the Magento source served by your test environment first. Adding a fixture alone does not instrument a remote store. Do not edit elgentos's generated `base-tests` directory.
+
+After either runner:
 
 ```sh
 npx --no-install magento-template-coverage report \
@@ -62,6 +86,7 @@ file and directory totals; directory percentages use summed covered/total counts
 | Underscore / `mage/template` | `<%= … %>`, `<%- … %>`, and expressions in `<% … %>` code: conditions, loops, assignments, initializers, returns, and nested function bodies. |
 | Legacy jQuery tmpl | `${…}`, `{{= …}}`, `if`, `else`, `each`, `html`, `tmpl`, and `wrap`. The normal engine still handles escaping, function invocation and nested templates. |
 | Magento UI literals | `${ $.expression }`, including nested JavaScript expressions. |
+| Alpine 3 / Hyvä default theme | `x-data`, `x-text`, `x-html`, `x-html-safe`, `x-show`, `x-if`, `x-bind` / `:`, `x-on` / `@`, `x-init`, `x-for` collections and assignable `x-model` expressions. Event hits count handler evaluation; inert/false template bodies stay uncovered. |
 | Plain HTML | DOM presence; static markup has no executable-line denominator. |
 | Template bodies in an HTML file | Supported `<script type="text/html">`, `text/x-magento-template`, `text/x-jquery-tmpl`, `text/x-template`, and native `<template>` bodies remain unexecuted until consumed. |
 
@@ -80,11 +105,15 @@ npx --no-install magento-template-coverage inventory \
   --engine app/code/Example/Module/view/frontend/web/fragments=literal
 ```
 
-Available engines: `auto`, `knockout`, `underscore`, `jquery-tmpl`, `literal`, `html`.
+Available engines: `auto`, `knockout`, `underscore`, `jquery-tmpl`, `literal`, `alpine`, `html`.
 Choose `html` for DOM-only coverage. Unrecognized/malformed binding expressions in
-automatic mode are retained with a visible DOM-only explanation. Explicit engine
-selections fail on syntax errors. Server-rendered email directives also retain DOM-only
+automatic mode are retained with a visible DOM-only explanation. Explicit legacy engine
+selections fail on syntax errors; unsupported Alpine directives remain unchanged with a report note. Server-rendered email directives also retain DOM-only
 coverage; sending an email does not produce browser coverage.
+
+Automatic detection retains legacy engine precedence in mixed HTML; Alpine attributes in those regions remain unchanged with a report note. Select `alpine` explicitly for Alpine HTML expressions containing legacy delimiters such as `${…}`. PHTML is analyzed directly as Alpine.
+
+Alpine support targets the regular Alpine 3 evaluator used by the Hyvä default theme. The restricted Alpine CSP evaluator is not supported by expression instrumentation. PHTML is tokenized to leave PHP code and PHP line numbers unchanged; directives emitted wholly by PHP, inline JavaScript bodies and dynamic attribute names are not assigned invented source locations. Unquoted/malformed directives and dynamic or multiline `x-model` expressions remain unchanged with a visible report limitation. Dynamic input type/name bindings are also left uninstrumented for model coverage. Custom Alpine plugins are measured only through the supported directives they evaluate.
 
 ## Reading the numbers
 
@@ -101,16 +130,14 @@ not count. Compiling a template without rendering it produces no execution hits.
 Rendering a detached fragment can produce execution hits without DOM presence.
 
 All physical `.html` files under the selected roots remain in the denominator,
-including unused files. Module/theme applicability is not inferred. PHP rendering,
-inline templates in PHP/JS files, database content, shadow roots, child frames, and
-arbitrary third-party languages are outside the execution metric. Comments stripped
+including unused files, along with inventoried Alpine PHTML. Module/theme applicability is not inferred. PHP rendering, templates generated wholly by PHP/JS, database content, shadow roots and arbitrary third-party languages are outside the execution metric. Playwright collects child frames; the Cypress adapter retains its top-document behavior. Comments stripped
 by minifiers/sanitizers can prevent DOM observation. Use Istanbul for application JS
 and PCOV for PHP.
 
 ## Repeat runs and upgrades
 
 Use fresh manifests, disposable copies, static assets and raw records for each run.
-Version 1.1 changes source identities; recreate 1.0 artifacts. JSON retains schema
+Alpine sources use new 1.2 identities; recreate manifests and raw records when upgrading. Existing Luma template identities are retained. JSON retains schema
 version 2 with expanded expression syntax and directory summaries. Hits from old
 source identities are rejected. The metric is now named `template-execution`.
 
@@ -129,6 +156,8 @@ evaluation, as Magento's legacy and template engines do.
 
 ```sh
 npm test
+npx playwright install chromium
+npm run test:playwright
 npm run test:browser -- /path/to/magento /path/to/cypress/node_modules/cypress
 npm pack --dry-run
 ```

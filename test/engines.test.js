@@ -140,3 +140,23 @@ test('bare Knockout declarations, empty Magento shorthand and SVG retain valid s
     assert.match(result.content, /collapsible: \/\*mtc_[^*]+\*\/void 0/);
     assert.match(result.content, /toggleCollapsible="\/\*mtc_[^*]+\*\/void 0"/);
 });
+
+
+test('Alpine attributes do not replace existing legacy engine execution coverage', () => {
+    const source = '<div x-data="{}"><% if (data.open) { %><%= data.name %><% } %></div>';
+    const result = renderUnderscore(source, {open: true, name: 'preserved'});
+    assert.deepEqual(result.engines, ['underscore']);
+    assert.equal(Object.keys(result.hits).length, 2);
+    assert.match(result.unsupported[0], /legacy engine coverage is retained/);
+    for (const [engine, content] of [
+        ['jquery-tmpl', '<div x-data="{}">${name}</div>'],
+        ['literal', '<div x-data="{}">${ $.name }</div>']
+    ]) {
+        const legacy = analyzeStatements(content, id);
+        assert.deepEqual(legacy.engines, [engine]);
+        assert.equal(legacy.statements.length, 1);
+        assert.match(legacy.unsupported[0], /legacy engine coverage is retained/);
+    }
+    const alpine = analyzeStatements('<div x-text="`Hello ${name}`"></div>', id, 'alpine');
+    assert.equal(alpine.statements[0].syntax, 'alpine:text');
+});

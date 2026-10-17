@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Added a Playwright context collector and composable fixtures, including TypeScript declarations and elgentos fixture examples.
+- Added Alpine directive execution coverage in HTML and Hyvä PHTML while preserving PHP code/source lines and source-copy isolation.
+- Preserved mixed Knockout/Alpine HTML, two-way model updates, radio groups, unexecuted branches, and existing Cypress engine integration.
+- Fixed collection for global Knockout builds that populate their exports after publishing the object.
+- Added real Playwright navigation/frame/page-close and Alpine/Knockout regressions. Unsupported directive forms are reported explicitly.
+
 ## 1.1.2
 
 - Run DOM observation and traversal in the application window's JavaScript realm, preserving Prototype DOM extensions on Magento admin pages during Cypress coverage.

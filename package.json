@@ -1,6 +1,6 @@
 {
   "name": "@vitaliiboiko/magento-template-coverage",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Directory and source-line execution reports for Magento HTML templates",
   "license": "UNLICENSED",
   "repository": {
@@ -23,13 +23,20 @@
     "cypress",
     "coverage",
     "templates",
-    "knockout"
+    "knockout",
+    "playwright",
+    "hyva",
+    "alpine"
   ],
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./browser": "./lib/browser.js",
-    "./cypress": "./cypress/support.js"
+    "./cypress": "./cypress/support.js",
+    "./playwright": {
+      "types": "./playwright/index.d.ts",
+      "default": "./playwright/index.js"
+    }
   },
   "bin": {
     "magento-template-coverage": "bin/cli.js"
@@ -39,20 +46,28 @@
     "lib",
     "cypress",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "playwright"
   ],
   "scripts": {
     "test": "node --test test/*.test.js",
     "test:browser": "node test/browser/run.js",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "test:playwright": "playwright test --config=test/playwright/config.js",
+    "test:types": "tsc --noEmit --strict --module node16 --moduleResolution node16 --target ES2022 test/playwright/types.ts"
   },
   "dependencies": {
     "acorn": "8.15.0",
     "entities": "6.0.1",
-    "parse5": "7.3.0"
+    "parse5": "7.3.0",
+    "php-parser": "3.7.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "alpinejs": "3.17.4",
     "knockout": "3.5.1",
-    "underscore": "1.13.6"
+    "typescript": "5.9.3",
+    "underscore": "1.13.8"
   }
 }

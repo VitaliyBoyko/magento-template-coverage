@@ -28,7 +28,7 @@ function main() {
 
 Instrumentation only writes outside the original Magento tree. Reports measure
 template expressions/bindings, their starting source lines, and separate DOM presence.
-Engines: auto, knockout, underscore, jquery-tmpl, literal, html. Overrides match a file
+Engines: auto, knockout, underscore, jquery-tmpl, literal, alpine, html. Overrides match a file
 or directory prefix; the most specific match wins.`);
         return;
     }
