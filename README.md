@@ -1,6 +1,10 @@
-# Magento template coverage
+# Magento 2 template coverage for Cypress and Playwright
 
 Coverage for Magento HTML/PHTML templates, including Knockout, jQuery templates, Hyvä/Alpine bindings and inline JavaScript. Supports Cypress and Playwright collection with Luma/Knockout and regular Hyvä/Alpine 3. Reports separate executable source lines from DOM presence. Originals stay untouched; only disposable copies are instrumented.
+
+Use this package to find untested storefront bindings and inline scripts in Magento modules and themes. For a Docker environment that combines template, PHP and whole-file JavaScript reports, see [MageLens](https://github.com/VitaliyBoyko/MageLens).
+
+[Install](#install) · [Supported syntax](#html-template-syntax) · [Report semantics](#reading-the-numbers) · [FAQ](#faq)
 
 ## Install
 
@@ -173,3 +177,25 @@ Underscore, `mage/template`, UI literal renderer and modal HTML. It fetches the 
 jQuery engine at the revision and SHA-256 in `test/browser/engines-lock.json`, cached
 in browser artifacts. It never modifies the Magento checkout. Tests assert exact
 source IDs, real counters, false-body zeros, cached rerenders and unchanged rendering.
+
+## FAQ
+
+### Does this replace PHP or JavaScript coverage?
+
+No. This package measures browser expressions and inline scripts in HTML/PHTML. Use [PCOV](https://github.com/VitaliyBoyko/pcov) for PHP executable lines and Istanbul for whole `.js` files. [MageLens](https://github.com/VitaliyBoyko/MageLens) integrates all three collectors.
+
+### Why is a visible template still uncovered?
+
+DOM presence and expression execution are separate metrics. Confirm the application serves the instrumented disposable copies, refresh static assets, and register the adapter before navigation. A static template can have DOM presence without executable lines. See [reading the numbers](#reading-the-numbers).
+
+### Does it support Hyvä CSP themes?
+
+Expression instrumentation targets the regular Alpine 3 evaluator. The restricted Alpine CSP evaluator is unsupported. See [supported syntax and limitations](#html-template-syntax) before selecting a theme.
+
+### Can I collect coverage from an existing remote store?
+
+Only if you control its test environment and serve instrumented copies there. Installing a Cypress or Playwright fixture alone does not instrument the store. Keep instrumentation in test infrastructure.
+
+## Releases and support
+
+See the [changelog](CHANGELOG.md) and [GitHub releases](https://github.com/VitaliyBoyko/magento-template-coverage/releases). Report reproducible problems in [issues](https://github.com/VitaliyBoyko/magento-template-coverage/issues), including the package version, runner, template syntax and a minimal example.

@@ -1,7 +1,7 @@
 {
   "name": "@vitaliiboiko/magento-template-coverage",
   "version": "1.3.0",
-  "description": "Execution coverage for Magento HTML/PHTML templates, bindings and inline scripts",
+  "description": "Magento 2 HTML/PHTML template execution coverage for Cypress and Playwright, including Knockout, Hyva/Alpine and inline JavaScript",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -20,13 +20,17 @@
   },
   "keywords": [
     "magento",
+    "magento2",
+    "code-coverage",
+    "template-coverage",
+    "phtml",
     "cypress",
-    "coverage",
-    "templates",
-    "knockout",
     "playwright",
+    "knockout",
     "hyva",
-    "alpine"
+    "alpinejs",
+    "inline-javascript",
+    "end-to-end-testing"
   ],
   "main": "lib/index.js",
   "exports": {
