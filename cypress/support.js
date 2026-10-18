@@ -8,11 +8,12 @@ function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
     let execution;
     let ids = new Set();
     let hits = {};
+    let references = new Map();
 
     function connect(win) {
         collector?.disconnect();
         execution?.disconnect();
-        collector = observeTemplates(win, id => ids.add(id));
+        collector = observeTemplates(win, id => ids.add(id), reference => references.set(JSON.stringify(reference), reference));
         execution = observeExecution(win, (id, statement) => {
             const counters = hits[id] ||= {};
             counters[statement] = (counters[statement] || 0) + 1;
@@ -25,6 +26,7 @@ function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
         collector = undefined;
         ids = new Set();
         hits = {};
+        references = new Map();
     });
     Cypress.on('window:before:load', win => {
         connect(win);
@@ -53,7 +55,8 @@ function registerTemplateCoverage({ outputDir = '.template-coverage' } = {}) {
                 test: Cypress.currentTest.titlePath,
                 retry: this.currentTest.currentRetry(),
                 ids: [...ids].sort(),
-                hits
+                hits,
+                references: [...references.values()]
             };
             return cy.writeFile(`${outputDir}/${recordId}.mtc`, JSON.stringify(record), { log: false });
         });

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0
+
+- Link PHP-rendered JavaScript fragments to instrumented child templates in HTML and JSON reports.
+- Distinguish empty output, linked child sources, unresolved generated code and output not observed during the run.
+- Preserve execution counts at the child source; rendering a fragment does not cover its functions or branches.
+- Collect source references through Cypress and Playwright across navigation, without adding template entries to JavaScript coverage.
+
+Recreate manifests, disposable copies, static assets and raw records when upgrading. Version 1.4 changes template identities; JSON remains schema 2.
+
 ## 1.3.0
 
 - Include inline classic/module scripts in HTML/PHTML template coverage, with statement, function and branch counters mapped to the original template.

@@ -22,15 +22,17 @@ async function registerTemplateCoverage(context, { outputDir = '.template-covera
     const script = `(() => {
         const runtime = ${browserSource()};
         const documentId = crypto.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2);
-        const ids = new Set(); const hits = {}; let sequence = 0; let queued = false;
+        const ids = new Set(); const hits = {}; const references = new Map(); let sequence = 0; let queued = false;
         const pending = new Set();
         const send = () => {
             queued = false;
-            const promise = window[${JSON.stringify(binding)}]({document:documentId, sequence:++sequence, ids:[...ids], hits});
+            const promise = window[${JSON.stringify(binding)}]({document:documentId, sequence:++sequence, ids:[...ids], hits, references:[...references.values()]});
             pending.add(promise); promise.catch(() => {}).finally(() => pending.delete(promise));
         };
         const changed = () => { if (!queued) { queued = true; queueMicrotask(send); } };
-        const dom = runtime.observeTemplates(window, id => {ids.add(id); changed();});
+        const dom = runtime.observeTemplates(window, id => {ids.add(id); changed();}, reference => {
+            references.set(JSON.stringify(reference), reference); changed();
+        });
         const execution = runtime.observeExecution(window, (id, statement) => {
             const counters = hits[id] ||= {}; counters[statement] = (counters[statement] || 0) + 1; changed();
         });
@@ -72,15 +74,16 @@ async function registerTemplateCoverage(context, { outputDir = '.template-covera
         stopped = true;
         context.off('page', trackPage);
         for (const [page, {close, wrapped}] of closeMethods) if (page.close === wrapped) page.close = close;
-        const ids = new Set(), hits = {};
+        const ids = new Set(), hits = {}, references = new Map();
         for (const snapshot of documents.values()) {
+            for (const reference of snapshot.references) references.set(JSON.stringify(reference), reference);
             for (const id of snapshot.ids) ids.add(id);
             for (const [id, statements] of Object.entries(snapshot.hits)) {
                 const counters = hits[id] ||= {};
                 for (const [statement, count] of Object.entries(statements)) counters[statement] = (counters[statement] || 0) + count;
             }
         }
-        const record = { ...metadata, schemaVersion: 2, recordId, ids: [...ids].sort(), hits };
+        const record = { ...metadata, schemaVersion: 2, recordId, ids: [...ids].sort(), hits, references: [...references.values()] };
         fs.mkdirSync(outputDir, {recursive: true});
         const file = path.join(outputDir, `${recordId}.mtc`);
         fs.writeFileSync(file, JSON.stringify(record), {flag: 'wx'});

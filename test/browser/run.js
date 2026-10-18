@@ -7,6 +7,7 @@ const os = require('node:os');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { createManifest, instrument, merge, readRecords, writeReport } = require('../../lib');
+const generated = require('../generated-fixture');
 
 // Read dependencies from a supplied Magento checkout without booting or changing it.
 if (!process.argv[2]) {
@@ -55,6 +56,7 @@ window.choose = function choose(value) { if(value) { window.calls++; return 'yes
     templatePaths.modal = modalPath;
     fs.mkdirSync(path.dirname(path.join(source, modalPath)), { recursive: true });
     fs.copyFileSync(path.join(ui, 'templates/modal/modal-popup.html'), path.join(source, modalPath));
+    generated.writeFixtures(path.join(source, 'app/code/Generated'));
     const manifest = createManifest({ source });
     instrument({ source, manifest, mappings: {
         'app/code': path.join(copy, 'app/code'),
@@ -121,6 +123,10 @@ document.getElementById('ready').textContent = 'Ready';`;
     const server = http.createServer((req, res) => {
         try {
             const url = new URL(req.url, `http://${req.headers.host}`);
+            if (url.pathname === '/generated-parent.phtml') {
+                res.setHeader('Content-Type', 'text/html');
+                res.end(generated.render(path.join(copy, 'app/code/Generated'), url.searchParams.get('mode') || 'child')); return;
+            }
             if (url.pathname === '/scripts.html') {
                 res.setHeader('Content-Type', 'text/html');
                 res.end('<!doctype html><html><body>' + fs.readFileSync(path.join(copy, templatePaths.scripts), 'utf8') + '</body></html>');
@@ -187,7 +193,7 @@ document.getElementById('ready').textContent = 'Ready';`;
                 }
             }
         });
-        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 15 || result.totalPassed !== 15) {
+        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 18 || result.totalPassed !== 18) {
             throw new Error(`Browser fixture failed: ${result.message || `${result.totalFailed} failures`}`);
         }
         const records = readRecords(hits);
@@ -210,7 +216,17 @@ document.getElementById('ready').textContent = 'Ready';`;
             'renders legacy jQuery conditions loops escaped values and nested templates': ['inline', 'jquery', 'jquery-child'],
             'renders Magento literals and consumes inert HTML templates': ['inline', 'literal']
         };
-        assert.equal(records.length, 15);
+        assert.equal(records.length, 18);
+        const generatedChild = manifest.templates.find(entry => entry.path.endsWith('generated-child.phtml'));
+        const renderedOnly = byTitle('links PHP child templates without recording execution');
+        assert.equal(renderedOnly.hits[generatedChild.id], undefined);
+        assert.equal(merge(manifest, [renderedOnly]).scripts.references[0].status, 'linked');
+        const generatedCalled = merge(manifest, [byTitle('executes child templates at their original locations')]).templates.find(entry => entry.id === generatedChild.id);
+        assert.equal(generatedCalled.functionSummary.covered, 1);
+        assert.equal(generatedCalled.branchSummary.covered, generatedCalled.branchSummary.total);
+        const generatedVariants = byTitle('retains empty and unknown PHP output across navigation');
+        assert.equal(generatedVariants.references.length, 2);
+        assert.equal(merge(manifest, [generatedVariants]).scripts.references[0].status, 'unresolved');
         for (const [title, names] of Object.entries(expectations)) assert.deepEqual(byTitle(title)?.ids, ids(names), title);
         const bindingEntry = manifest.templates.find(entry => entry.path === templatePaths.bindings);
         const baseline = byTitle('leaves false conditional bodies and empty loops uncovered').hits[bindingEntry.id];
@@ -254,8 +270,8 @@ document.getElementById('ready').textContent = 'Ready';`;
         const retainedScriptHits = byTitle('resets inline script counts on a retained page').hits[scriptEntry.id];
         assert.equal(retainedScriptHits['script:1:f:0'], 1);
         assert.equal(retainedScriptHits['script:2:s:0'] || 0, 0);
-        assert.equal(report.summary.covered, 15);
-        assert.equal(report.summary.uncovered, 3);
+        assert.equal(report.summary.covered, 16);
+        assert.equal(report.summary.uncovered, 4);
         assert.ok(report.lines.covered > 0 && report.lines.covered < report.lines.total);
         writeReport(report, path.join(output, 'report'));
         fs.writeFileSync(path.join(output, 'template-manifest.json'), JSON.stringify(manifest, null, 2));

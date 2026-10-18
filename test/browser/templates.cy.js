@@ -161,3 +161,31 @@ describe('inline template scripts', {testIsolation: false}, () => {
         cy.window().then(win => expect(win.__coverage__).to.equal(undefined));
     });
 });
+
+describe('PHP child template output', () => {
+    it('links PHP child templates without recording execution', () => {
+        cy.visit('/generated-parent.phtml');
+        cy.get('#generated-call').should('be.visible');
+        cy.window().then(win => expect(win.childResult).to.equal(undefined));
+    });
+
+    it('executes child templates at their original locations', () => {
+        cy.visit('/generated-parent.phtml');
+        cy.get('#generated-call').click();
+        cy.window().then(win => {
+            expect(win.childResult).to.equal('yes');
+            win.generatedRun(false);
+            expect(win.childResult).to.equal('no');
+            expect(win.childNever).to.equal(undefined);
+            expect(win.__coverage__).to.equal(undefined);
+        });
+    });
+
+    it('retains empty and unknown PHP output across navigation', () => {
+        cy.visit('/generated-parent.phtml?mode=empty');
+        cy.get('#generated-call').click();
+        cy.visit('/generated-parent.phtml?mode=unknown');
+        cy.get('#generated-call').click();
+        cy.window().its('unknownOutput').should('equal', true);
+    });
+});

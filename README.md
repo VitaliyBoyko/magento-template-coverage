@@ -124,9 +124,13 @@ Alpine support targets the regular Alpine 3 evaluator used by the Hyvä default 
 
 Executable scripts are instrumented in HTML/PHTML and native `<template>` bodies. The same counters work when an application inserts or executes an instrumented template fragment later. Fetching, parsing or caching a fragment alone does not count as execution. Scripts loaded through `src` belong to their separate `.js` file; JSON and `text/x-magento-init` blocks are data, not executable script bodies.
 
-PHTML scripts support PHP values, identifier suffixes and PHP `if/else` initializer choices. PHP code, strings, comments and original newlines are preserved. PHP branch choices are not counted as JavaScript branches. Unsupported scripts remain unchanged and are listed in the report. JavaScript emitted entirely by PHP has no static browser source map; those fragments are listed separately and never counted as covered. Runtime-generated template strings, database content and arbitrary generated code are not assigned invented source locations.
+PHTML scripts support PHP values, identifier suffixes and PHP `if/else` initializer choices. Original newlines and source locations are preserved. PHP branch choices are not counted as JavaScript branches. Unsupported scripts remain unchanged and are listed in the report. Runtime-generated template strings, database content and arbitrary generated code are not assigned invented source locations.
 
-The template report shows bindings and scripts in the same original file. Function and branch counters describe inline JavaScript; they do not imply branch-level coverage inside Knockout, Alpine or other template binding expressions. In the JSON report, `scripts.unsupported` and `scripts.generated` list coverage gaps by path and line.
+Standalone PHP `echo` expressions inside scripts are traced in the disposable copy. Each expression is evaluated once in its original PHP scope. A comment records whether its output is empty or contains counters from instrumented child templates, such as Hyvä reCAPTCHA validation fragments. The report links to those child source files; their statements, functions and branches are counted there only when JavaScript executes. The parent does not receive duplicate counters.
+
+Output without a known child source stays unresolved. An expression that was not observed stays marked as not observed; it is not assumed to emit code. Links describe the instrumented child sources found in the output, not a source map for additional dynamically generated code. Supported tracing requires one expression in an `echo` statement (`<?= ... ?>` or `<?php echo ...; ?>`); other PHP output forms retain a diagnostic. Comments removed by a minifier or sanitizer can prevent source attribution without affecting the child execution counters.
+
+The template report shows bindings and scripts in the same original file. Function and branch counters describe inline JavaScript; they do not imply branch-level coverage inside Knockout, Alpine or other template binding expressions. In the JSON report, `scripts.unsupported` lists unsupported scripts, `scripts.generated` lists unresolved or unobserved PHP output, and `scripts.references` includes all PHP output locations with their status and child-source links. Rendering and source attribution are separate from execution coverage.
 
 ## Reading the numbers
 
@@ -147,7 +151,7 @@ by minifiers/sanitizers can prevent DOM observation. Use Istanbul for whole `.js
 ## Repeat runs and upgrades
 
 Use fresh manifests, disposable copies, static assets and raw records for each run.
-Version 1.3 uses new source identities for every template. Recreate manifests, copies and raw records when upgrading. JSON retains schema version 2 and adds per-file script diagnostics, function and branch counters and their summaries. Hits from old
+Version 1.4 uses new source identities for every template. Recreate manifests, copies and raw records when upgrading. JSON retains schema version 2 and adds per-file script diagnostics, function and branch counters and their summaries. Hits from old
 source identities are rejected. The metric is now named `template-execution`.
 
 Each test writes a unique `.mtc` record. Counters reset between tests, including

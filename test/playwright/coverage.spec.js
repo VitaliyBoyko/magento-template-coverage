@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const {test: base, expect} = require('@playwright/test');
 const {withTemplateCoverage} = require('../../playwright');
 const {createManifest, instrument, merge, readRecords, writeReport} = require('../../lib');
+const generated = require('../generated-fixture');
 
 const test = withTemplateCoverage(base).extend({
     fixture: [async ({}, use) => {
@@ -41,9 +42,15 @@ window.choose = function choose(value) { if(value) { window.calls++; return 'yes
             'unused.html': '<div x-data="{}" x-text="\'unused\'"></div>'
         };
         for (const [file, body] of Object.entries(files)) fs.writeFileSync(path.join(source, 'app/code', file), body);
+        generated.writeFixtures(path.join(source, 'app/code'));
         const manifest = createManifest({source, roots: ['app/code']});
         instrument({source, manifest, mappings: {'app/code': copy}});
         const server = http.createServer((req, res) => {
+            const url = new URL(req.url, 'http://localhost');
+            if (url.pathname === '/generated-parent.phtml') {
+                res.setHeader('Content-Type', 'text/html');
+                res.end(generated.render(copy, url.searchParams.get('mode') || 'child')); return;
+            }
             const filename = req.url.slice(1);
             if (filename === 'knockout.js') {
                 res.setHeader('Content-Type', 'application/javascript'); res.end(fs.readFileSync(require.resolve('knockout'))); return;
@@ -145,9 +152,44 @@ test('collects inline scripts, consumed templates, module scripts and inserted f
     expect(errors).toEqual([]);
 });
 
+test('links a PHP-rendered child without counting its uncalled function body', async ({page}) => {
+    await page.goto('/generated-parent.phtml');
+    await expect(page.locator('#generated-call')).toBeVisible();
+    expect(await page.evaluate(() => window.childResult)).toBeUndefined();
+});
+
+test('collects child-template execution at the child source location', async ({page}) => {
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/generated-parent.phtml');
+    await page.locator('#generated-call').click();
+    expect(await page.evaluate(() => window.childResult)).toBe('yes');
+    await page.evaluate(() => window.generatedRun(false));
+    expect(await page.evaluate(() => [window.childResult, window.childNever, window.__coverage__])).toEqual(['no', undefined, undefined]);
+    expect(errors).toEqual([]);
+});
+
+test('retains empty and unknown PHP output attribution across navigation', async ({page}) => {
+    await page.goto('/generated-parent.phtml?mode=empty');
+    await page.locator('#generated-call').click();
+    await page.goto('/generated-parent.phtml?mode=unknown');
+    await page.locator('#generated-call').click();
+    expect(await page.evaluate(() => window.unknownOutput)).toBe(true);
+});
+
 test.afterAll(async ({fixture}) => {
     const records = readRecords(path.join(fixture.root, 'hits'));
-    assert.equal(records.length, 6);
+    assert.equal(records.length, 9);
+    const child = fixture.manifest.templates.find(entry => entry.path.endsWith('generated-child.phtml'));
+    const idle = records.find(record => record.test.at(-1).startsWith('links a PHP-rendered'));
+    assert.equal(idle.hits[child.id], undefined);
+    assert.equal(merge(fixture.manifest, [idle]).scripts.references[0].status, 'linked');
+    const called = records.find(record => record.test.at(-1).startsWith('collects child-template'));
+    const childResult = merge(fixture.manifest, [called]).templates.find(entry => entry.id === child.id);
+    assert.equal(childResult.functionSummary.covered, 1);
+    assert.equal(childResult.branchSummary.covered, childResult.branchSummary.total);
+    const variants = records.find(record => record.test.at(-1).startsWith('retains empty and unknown'));
+    assert.equal(variants.references.length, 2);
+    assert.equal(merge(fixture.manifest, [variants]).scripts.references[0].status, 'unresolved');
     const entry = fixture.manifest.templates.find(entry => entry.path.endsWith('alpine.html'));
     const line = (text, binding) => entry.statements.find(statement => (!binding || statement.binding === binding) && entry.source.split('\n')[statement.start.line - 1].includes(text));
     const first = records.find(record => record.test.at(-1).startsWith('Alpine executes'));
