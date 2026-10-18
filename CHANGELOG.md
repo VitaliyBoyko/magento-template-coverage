@@ -5,6 +5,7 @@
 - Support Hyvä CSP Alpine bindings without dynamic code generation, preserving event arguments, model writes, loop locals and inserted templates.
 - Collect DOM observations under strict CSP without requiring `unsafe-eval`, while retaining Magento Admin’s Prototype DOM extensions.
 - Measure PHP-selected lexical declarations in inline scripts, including the Hyvä CSP date-option template.
+- Keep auxiliary Playwright login contexts functional without adding their setup activity to measured records.
 - Provide `installTemplateRuntime` for Playwright warm-up contexts that serve instrumented templates without recording coverage.
 - Recreate manifests, instrumented copies and raw records when upgrading: version 1.5 uses new template identities.
 

@@ -5,10 +5,19 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { browserSource } = require('../lib/browser-source');
 const registeredContexts = new WeakSet();
+const runtimeContexts = new WeakSet();
+const runtimeKey = 'magento-template-coverage.runtime';
 
 /** Keep instrumented templates functional during warm-up without recording hits. */
 async function installTemplateRuntime(context) {
-    await context.addInitScript({content: `(() => { const runtime = ${browserSource()}; runtime.observeExecution(window, () => {}); })();`});
+    if (runtimeContexts.has(context)) return;
+    runtimeContexts.add(context);
+    await context.addInitScript({content: `(() => {
+        const key = Symbol.for(${JSON.stringify(runtimeKey)});
+        if (window[key]) return;
+        const runtime = window[key] = ${browserSource()};
+        runtime.observeExecution(window, () => {});
+    })();`});
 }
 
 /** Register before creating/navigating pages. Works with any Playwright browser. */
@@ -25,7 +34,7 @@ async function registerTemplateCoverage(context, { outputDir = '.template-covera
         if (!previous || snapshot.sequence > previous.sequence) documents.set(snapshot.document, snapshot);
     });
     const script = `(() => {
-        const runtime = ${browserSource()};
+        const runtime = window[Symbol.for(${JSON.stringify(runtimeKey)})] ||= ${browserSource()};
         const documentId = crypto.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2);
         const ids = new Set(); const hits = {}; const references = new Map(); let sequence = 0; let queued = false;
         const pending = new Set();
@@ -101,6 +110,18 @@ async function registerTemplateCoverage(context, { outputDir = '.template-covera
 function withTemplateCoverage(test, options = {}) {
     return test.extend({
         templateCoverageOptions: [options, {option: true}],
+        browser: [async ({browser}, use) => {
+            const newContext = browser.newContext;
+            const wrapped = async function (...args) {
+                const context = await newContext.apply(this, args);
+                try { await installTemplateRuntime(context); }
+                catch (error) { await context.close(); throw error; }
+                return context;
+            };
+            browser.newContext = wrapped;
+            try { await use(browser); }
+            finally { if (browser.newContext === wrapped) browser.newContext = newContext; }
+        }, {scope: 'worker'}],
         context: async ({context, templateCoverageOptions}, use, testInfo) => {
             const coverage = await registerTemplateCoverage(context, {...templateCoverageOptions,
                 metadata: {spec: testInfo.file, test: testInfo.titlePath, retry: testInfo.retry,

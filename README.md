@@ -168,7 +168,9 @@ the unmodified policy. See [Cypress CSP behavior](https://docs.cypress.io/app/re
 
 Instrumented Alpine property paths use the reserved `x-mtc` directive and require
 the package runtime before Alpine starts. The collection adapters install it
-automatically. For a separate warm-up browser that must not record coverage:
+automatically. `withTemplateCoverage` also keeps auxiliary `browser.newContext()`
+contexts functional, including worker-scoped login fixtures, without recording
+their setup activity. For a separate warm-up browser that must not record coverage:
 
 ```js
 // Playwright: register before navigating any page in this context.
