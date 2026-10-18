@@ -34,23 +34,23 @@ test('inventory includes untouched templates, distinguishes unsupported files, a
     const { source, manifest } = fixture(t);
     assert.deepEqual(manifest, createManifest({ source }));
     const report = merge(manifest, []);
-    assert.deepEqual(report.summary, { eligible: 5, covered: 0, uncovered: 5, unsupported: 0, percent: 0 });
+    assert.deepEqual(report.summary, { eligible: 6, covered: 0, uncovered: 6, unsupported: 0, percent: 0 });
     assert.equal(manifest.templates.filter(entry => entry.area === 'adminhtml').length, 1);
 });
 
 test('instrumentation writes only browser HTML in the disposable copy and is repeatable', t => {
     const { source, files, mappings, manifest } = fixture(t);
-    assert.equal(instrument({ source, mappings, manifest }), 5);
-    assert.equal(instrument({ source, mappings, manifest }), 5);
+    assert.equal(instrument({ source, mappings, manifest }), 6);
+    assert.equal(instrument({ source, mappings, manifest }), 6);
     for (const [file, original] of Object.entries(files)) assert.equal(fs.readFileSync(path.join(source, file), 'utf8'), original);
     for (const entry of manifest.templates) {
         const root = entry.path.startsWith('app/code/') ? 'app/code' : 'app/design';
         const output = path.join(mappings[root], entry.path.slice(root.length + 1));
         if (entry.instrumented) {
             const actual = fs.readFileSync(output, 'utf8');
-            assert.ok(actual.startsWith(`<!--mtc:${entry.id}-->\n`));
+            assert.ok(actual.startsWith(`<!--mtc:${entry.id}-->${entry.kind === 'browser-phtml' ? '' : '\n'}`));
             if (entry.path.endsWith('modal.html')) assert.match(actual, /__mtcTemplateHit/);
-            else assert.equal(actual, `<!--mtc:${entry.id}-->\n${files[entry.path]}`);
+            else assert.equal(actual, `<!--mtc:${entry.id}-->${entry.kind === 'browser-phtml' ? '' : '\n'}${files[entry.path]}`);
         }
         else assert.equal(fs.existsSync(output), false);
     }
@@ -107,7 +107,7 @@ test('merging retains zeros, deduplicates copied records and rejects stale hits'
     const first = { schemaVersion: 2, recordId: 'shard-1', ids: [supported[0].id, supported[0].id], hits: {} };
     const second = { schemaVersion: 2, recordId: 'shard-2', ids: [supported[1].id, supported[0].id], hits: {} };
     const report = merge(manifest, [first, first, second]);
-    assert.deepEqual(report.summary, { eligible: 5, covered: 2, uncovered: 3, unsupported: 0, percent: 40 });
+    assert.deepEqual(report.summary, { eligible: 6, covered: 2, uncovered: 4, unsupported: 0, percent: 33.33 });
     assert.equal(report.records, 2);
     assert.equal(report.templates.find(entry => entry.id === supported[0].id).observations, 2);
     assert.throws(() => merge(manifest, [{ ...first, ids: ['a'.repeat(32)] }]), /stale manifest/);

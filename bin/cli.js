@@ -27,7 +27,8 @@ function main() {
   report --manifest <file> --hits <shard-directory> --output <report-directory>
 
 Instrumentation only writes outside the original Magento tree. Reports measure
-template expressions/bindings, their starting source lines, and separate DOM presence.
+template bindings and inline scripts, their starting source lines, script functions/branches,
+and separate DOM presence.
 Engines: auto, knockout, underscore, jquery-tmpl, literal, alpine, html. Overrides match a file
 or directory prefix; the most specific match wins.`);
         return;

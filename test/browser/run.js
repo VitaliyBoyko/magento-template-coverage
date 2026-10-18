@@ -32,6 +32,11 @@ async function main() {
         prefetched: '<div>Fetched but never parsed or rendered</div>',
         detached: '<div>Parsed but only kept in a detached fragment</div>',
         unused: '<div>Never even requested</div>',
+        scripts: `<button id="script-call" onclick="window.choose(true)">Call</button><script>
+window.calls = 0;
+window.choose = function choose(value) { if(value) { window.calls++; return 'yes'; } return 'no'; };
+</script><template id="script-cache"><script>window.inserted = (window.inserted || 0) + 1;</script></template>
+<template id="script-unused"><script>window.neverInserted = true;</script></template>`,
         second: '<div id="second-page">Second page</div>',
         transient: '<div id="transient-content">Removed in the same event loop turn</div>',
         row: '<tr id="table-row"><td>Table fragment</td></tr>',
@@ -116,6 +121,11 @@ document.getElementById('ready').textContent = 'Ready';`;
     const server = http.createServer((req, res) => {
         try {
             const url = new URL(req.url, `http://${req.headers.host}`);
+            if (url.pathname === '/scripts.html') {
+                res.setHeader('Content-Type', 'text/html');
+                res.end('<!doctype html><html><body>' + fs.readFileSync(path.join(copy, templatePaths.scripts), 'utf8') + '</body></html>');
+                return;
+            }
             if (url.pathname === '/legacy.html') {
                 res.setHeader('Content-Type', 'text/html');
                 const scripts = legacyPage.indexOf('<script');
@@ -177,13 +187,15 @@ document.getElementById('ready').textContent = 'Ready';`;
                 }
             }
         });
-        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 13 || result.totalPassed !== 13) {
+        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 15 || result.totalPassed !== 15) {
             throw new Error(`Browser fixture failed: ${result.message || `${result.totalFailed} failures`}`);
         }
         const records = readRecords(hits);
         const byTitle = title => records.find(record => record.test.at(-1) === title);
         const ids = names => names.map(name => manifest.templates.find(entry => entry.path === templatePaths[name]).id).sort();
         const expectations = {
+            'measures inline scripts and scripts inserted from cached templates': ['scripts'],
+            'resets inline script counts on a retained page': ['scripts'],
             'preserves Prototype DOM extensions when observation starts before the legacy bundle': ['root', 'legacy'],
             'ignores fetched, detached, unused and inert nested templates': ['root'],
             'tracks nested Knockout, cached rerenders and the real Magento modal': ['root', 'nested', 'modal'],
@@ -198,7 +210,7 @@ document.getElementById('ready').textContent = 'Ready';`;
             'renders legacy jQuery conditions loops escaped values and nested templates': ['inline', 'jquery', 'jquery-child'],
             'renders Magento literals and consumes inert HTML templates': ['inline', 'literal']
         };
-        assert.equal(records.length, 13);
+        assert.equal(records.length, 15);
         for (const [title, names] of Object.entries(expectations)) assert.deepEqual(byTitle(title)?.ids, ids(names), title);
         const bindingEntry = manifest.templates.find(entry => entry.path === templatePaths.bindings);
         const baseline = byTitle('leaves false conditional bodies and empty loops uncovered').hits[bindingEntry.id];
@@ -234,7 +246,15 @@ document.getElementById('ready').textContent = 'Ready';`;
         const inlineHits = byTitle('renders Magento literals and consumes inert HTML templates').hits[engineEntry('inline').id];
         assert.ok(inlineHits && Object.keys(inlineHits).length === engineEntry('inline').statements.length);
         const report = merge(manifest, records);
-        assert.equal(report.summary.covered, 14);
+        const scriptEntry = engineEntry('scripts');
+        const scriptHits = byTitle('measures inline scripts and scripts inserted from cached templates').hits[scriptEntry.id];
+        assert.equal(scriptHits['script:1:f:0'], 1);
+        assert.equal(scriptHits['script:2:s:0'], 2);
+        assert.equal(scriptHits['script:3:s:0'] || 0, 0);
+        const retainedScriptHits = byTitle('resets inline script counts on a retained page').hits[scriptEntry.id];
+        assert.equal(retainedScriptHits['script:1:f:0'], 1);
+        assert.equal(retainedScriptHits['script:2:s:0'] || 0, 0);
+        assert.equal(report.summary.covered, 15);
         assert.equal(report.summary.uncovered, 3);
         assert.ok(report.lines.covered > 0 && report.lines.covered < report.lines.total);
         writeReport(report, path.join(output, 'report'));

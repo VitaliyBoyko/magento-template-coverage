@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- Include inline classic/module scripts in HTML/PHTML template coverage, with statement, function and branch counters mapped to the original template.
+- Collect script execution through the existing Cypress and Playwright adapters, including inserted fragments and consumed native templates, without adding template entries to JavaScript coverage.
+- Include static PHTML browser markup in DOM coverage and detect Knockout, legacy engines and Alpine bindings in PHTML.
+- Preserve PHP code and line positions; show unsupported scripts and PHP-generated fragments as explicit coverage gaps.
+- Keep inline scripts and JavaScript template literals in Alpine attributes from affecting template-engine detection and retain zero counters for unused templates and handlers.
+
+Recreate manifests, disposable copies, static assets and raw records when upgrading. Version 1.3 changes template identities and adds script/function/branch details to schema 2 reports.
+
 ## 1.2.0
 
 - Added a Playwright context collector and composable fixtures, including TypeScript declarations and elgentos fixture examples.

@@ -18,6 +18,7 @@ const test = withTemplateCoverage(base).extend({
             'alpine.html': `<section x-data="{ count: 0, name: 'initial', open: false, items: ['one','two'], choice: 'a' }">
 <button id="increment" @click="count++">Increment</button>
 <output id="count" x-text="count"></output>
+<span id="template-literal" x-text="\`Count: \${count}\`"></span>
 <input id="name" x-model="name"><span id="echo" x-text="name"></span>
 <template x-if="open"><div id="never" x-text="'not executed'"></div></template>
 <template x-for="item in items"><span class="item" x-text="item"></span></template>
@@ -27,6 +28,15 @@ const test = withTemplateCoverage(base).extend({
 <a href="/second.html">Next</a>
 </section>`,
             'knockout.html': '<section id="ko"><input id="ko-input" data-bind="textInput: name"><span id="ko-output" data-bind="text: name"></span></section><script>ko.applyBindings({name:ko.observable("original")},document.getElementById("ko"))</script>',
+            'scripts.html': `<button id="call" onclick="window.choose(true)">Call</button>
+<script>
+window.calls = 0;
+window.choose = function choose(value) { if(value) { window.calls++; return 'yes'; } return 'no'; };
+</script>
+<template id="cached"><script>window.inserted = (window.inserted || 0) + 1;</script></template>
+<template id="unused-script"><script>window.neverInserted = true;</script></template>`,
+            'fragment.html': '<script>window.fromFragment = (window.fromFragment || 0) + 1;</script>',
+            'module.html': '<script type="module">window.fromModule = 42;</script>',
             'second.html': '<div id="second">Second document</div>',
             'unused.html': '<div x-data="{}" x-text="\'unused\'"></div>'
         };
@@ -44,6 +54,7 @@ const test = withTemplateCoverage(base).extend({
             }
             if (!Object.hasOwn(files, filename)) { res.writeHead(404).end(); return; }
             res.setHeader('Content-Type', 'text/html');
+            if (filename === 'fragment.html') { res.end(fs.readFileSync(path.join(copy, filename))); return; }
             res.end('<!doctype html><html><head><script src="/knockout.js"></script><script defer src="/alpine.js"></script></head><body>' + fs.readFileSync(path.join(copy, filename)) + '</body></html>');
         });
         await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -60,6 +71,7 @@ test('Alpine executes directives without changing inputs, branches or loops', as
     await expect(page.locator('#count')).toHaveText('0');
     await page.locator('#increment').click();
     await expect(page.locator('#count')).toHaveText('1');
+    await expect(page.locator('#template-literal')).toHaveText('Count: 1');
     await page.locator('#name').fill('updated');
     await expect(page.locator('#echo')).toHaveText('updated');
     await expect(page.locator('.item')).toHaveText(['one', 'two']);
@@ -96,6 +108,7 @@ test('writes records when a test assertion fails', async ({page}) => {
     await page.goto('/alpine.html');
     await page.locator('#increment').click();
     await expect(page.locator('#count')).toHaveText('1');
+    await expect(page.locator('#template-literal')).toHaveText('Count: 1');
     expect('intentional failure').toBe('expected assertion');
 });
 
@@ -108,9 +121,33 @@ navigatesDuringSetup('collects navigation performed by another automatic fixture
     await expect(page.locator('#echo')).toHaveText('initial');
 });
 
+test('collects inline scripts, consumed templates, module scripts and inserted fragments without JS coverage', async ({page}) => {
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/scripts.html');
+    expect(await page.evaluate(() => [window.calls, window.inserted, window.neverInserted, window.__coverage__])).toEqual([0, undefined, undefined, undefined]);
+    await page.locator('#call').click();
+    expect(await page.evaluate(() => window.calls)).toBe(1);
+    await page.evaluate(() => {
+        document.body.appendChild(document.querySelector('#cached').content.cloneNode(true));
+        document.body.appendChild(document.querySelector('#cached').content.cloneNode(true));
+    });
+    expect(await page.evaluate(() => window.inserted)).toBe(2);
+    await page.evaluate(async () => {
+        const html = await (await fetch('/fragment.html')).text();
+        const container = document.createElement('div'); container.innerHTML = html;
+        const script = document.createElement('script'); script.textContent = container.querySelector('script').textContent;
+        document.body.append(script);
+    });
+    expect(await page.evaluate(() => window.fromFragment)).toBe(1);
+    expect(await page.evaluate(() => window.__coverage__)).toBeUndefined();
+    await page.goto('/module.html');
+    await expect.poll(() => page.evaluate(() => window.fromModule)).toBe(42);
+    expect(errors).toEqual([]);
+});
+
 test.afterAll(async ({fixture}) => {
     const records = readRecords(path.join(fixture.root, 'hits'));
-    assert.equal(records.length, 5);
+    assert.equal(records.length, 6);
     const entry = fixture.manifest.templates.find(entry => entry.path.endsWith('alpine.html'));
     const line = (text, binding) => entry.statements.find(statement => (!binding || statement.binding === binding) && entry.source.split('\n')[statement.start.line - 1].includes(text));
     const first = records.find(record => record.test.at(-1).startsWith('Alpine executes'));
@@ -121,11 +158,21 @@ test.afterAll(async ({fixture}) => {
     assert.equal(first.hits[entry.id][line('id="unused-event"').id] || 0, 0);
     assert.ok(second.hits[entry.id][line('<section').id] >= 2, 'Closed page and iframe must both survive collection');
     const knockout = fixture.manifest.templates.find(entry => entry.path.endsWith('knockout.html'));
-    assert.ok(Object.keys(records.find(record => record.test.at(-1).includes('Luma')).hits[knockout.id]).length === 2);
+    assert.equal(knockout.statements.length, 3);
+    assert.equal(Object.keys(records.find(record => record.test.at(-1).includes('Luma')).hits[knockout.id]).length, 3);
     const failed = records.find(record => record.test.at(-1).includes('assertion fails'));
     assert.equal(failed.hits[entry.id][line('id="increment"').id], 1);
     const setup = records.find(record => record.test.at(-1).includes('automatic fixture'));
     assert.equal(setup.hits[entry.id][line('<section').id], 1);
+    const scriptRecord = records.find(record => record.test.at(-1).startsWith('collects inline scripts'));
+    const scripts = fixture.manifest.templates.find(entry => entry.path.endsWith('/scripts.html'));
+    assert.equal(scriptRecord.hits[scripts.id]['script:2:s:0'], 2);
+    assert.equal(scriptRecord.hits[scripts.id]['script:3:s:0'] || 0, 0);
+    assert.equal(scriptRecord.hits[scripts.id]['script:1:f:0'], 1);
+    const fragment = fixture.manifest.templates.find(entry => entry.path.endsWith('/fragment.html'));
+    assert.equal(scriptRecord.hits[fragment.id]['script:1:s:0'], 1);
+    const module = fixture.manifest.templates.find(entry => entry.path.endsWith('/module.html'));
+    assert.equal(scriptRecord.hits[module.id]['script:1:s:0'], 1);
     const report = merge(fixture.manifest, records);
     assert.equal(report.templates.find(entry => entry.path.endsWith('unused.html')).status, 'unobserved');
     writeReport(report, path.join(fixture.root, 'report'));

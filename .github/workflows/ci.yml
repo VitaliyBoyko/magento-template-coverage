@@ -20,4 +20,7 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm test
+      - run: npm run test:types
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:playwright
       - run: npm pack --dry-run

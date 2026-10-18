@@ -138,3 +138,26 @@ describe('HTML template engines', () => {
         cy.get('.native-result').should('have.text', 'Native HTML');
     });
 });
+
+
+describe('inline template scripts', {testIsolation: false}, () => {
+    before(() => cy.visit('/scripts.html'));
+    it('measures inline scripts and scripts inserted from cached templates', () => {
+        cy.visit('/scripts.html');
+        cy.window().then(win => {
+            expect(win.__coverage__).to.equal(undefined);
+            expect(win.inserted).to.equal(undefined);
+            expect(win.neverInserted).to.equal(undefined);
+            win.document.body.appendChild(win.document.querySelector('#script-cache').content.cloneNode(true));
+            win.document.body.appendChild(win.document.querySelector('#script-cache').content.cloneNode(true));
+            expect(win.inserted).to.equal(2);
+        });
+        cy.get('#script-call').click();
+        cy.window().its('calls').should('eq', 1);
+    });
+    it('resets inline script counts on a retained page', () => {
+        cy.get('#script-call').click();
+        cy.window().its('calls').should('eq', 2);
+        cy.window().then(win => expect(win.__coverage__).to.equal(undefined));
+    });
+});
