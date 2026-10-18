@@ -143,3 +143,27 @@ test('standalone CR and CRLF lines retain original script locations', () => {
         assert.equal(result.code.replace(/[^\r\n]/g, ''), source.replace(/[^\r\n]/g, ''));
     }
 });
+
+
+test('PHP-selected lexical declarations keep their shared browser scope and separate source counters', () => {
+    for (const enabled of ['true', 'false']) {
+        const source = `<?php $enabled = ${enabled}; ?>
+<script>
+function selectedDate() {
+<?php if ($enabled): ?>
+    const value = new Date('2026-10-18T12:00:00Z');
+<?php else: /* time-only input */ ?>
+    const value = new Date('1999-02-10T15:00:00Z');
+<?php endif; ?>
+    return value.getUTCFullYear();
+}
+window.selected = selectedDate();
+</script>`;
+        const result = execute(source);
+        const entry = Object.values(result.coverage)[0];
+        assert.deepEqual(entry.branchMap, {});
+        const declarations = Object.entries(entry.statementMap).filter(([, statement]) => [5,7].includes(statement.start.line));
+        assert.equal(declarations.length, 2);
+        for (const [id, statement] of declarations) assert.equal(entry.s[id] > 0, statement.start.line === (enabled === 'true' ? 5 : 7));
+    }
+});

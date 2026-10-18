@@ -8,3 +8,5 @@ export function registerTemplateCoverage(context: BrowserContext, options?: Temp
     stop(): Promise<string | undefined>;
 }>;
 export function withTemplateCoverage<T extends {}, W extends {}>(test: TestType<T, W>, options?: TemplateCoverageOptions): TestType<T & {templateCoverageOptions: TemplateCoverageOptions}, W>;
+
+export function installTemplateRuntime(context: BrowserContext): Promise<void>;

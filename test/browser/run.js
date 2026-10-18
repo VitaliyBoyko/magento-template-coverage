@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { createManifest, instrument, merge, readRecords, writeReport } = require('../../lib');
 const generated = require('../generated-fixture');
+const csp = require('../csp-fixture');
 
 // Read dependencies from a supplied Magento checkout without booting or changing it.
 if (!process.argv[2]) {
@@ -57,6 +58,7 @@ window.choose = function choose(value) { if(value) { window.calls++; return 'yes
     fs.mkdirSync(path.dirname(path.join(source, modalPath)), { recursive: true });
     fs.copyFileSync(path.join(ui, 'templates/modal/modal-popup.html'), path.join(source, modalPath));
     generated.writeFixtures(path.join(source, 'app/code/Generated'));
+    csp.write(path.join(source, 'app/code/Csp'));
     const manifest = createManifest({ source });
     instrument({ source, manifest, mappings: {
         'app/code': path.join(copy, 'app/code'),
@@ -114,6 +116,8 @@ require(['jquery','ko','mage/template','Magento_Ui/js/lib/knockout/template/rend
 <script src="/lib/legacy-build.min.js" defer></script><script src="/legacy-app.js" defer></script>
 </body></html>`;
     const legacyApp = `
+Element.addMethods({setHasChanges(element) { element.setAttribute('data-changed', 'yes'); }});
+document.querySelectorAll('input').forEach(element => element.setHasChanges.bind(element)());
 Fieldset.applyCollapse('legacy-section');
 document.getElementById('legacy-section-head').onclick = function () {
     Fieldset.toggleCollapse('legacy-section');
@@ -122,6 +126,7 @@ document.getElementById('ready').textContent = 'Ready';`;
 
     const server = http.createServer((req, res) => {
         try {
+            if (csp.serve(req, res, path.join(copy, 'app/code/Csp'))) return;
             const url = new URL(req.url, `http://${req.headers.host}`);
             if (url.pathname === '/generated-parent.phtml') {
                 res.setHeader('Content-Type', 'text/html');
@@ -193,10 +198,11 @@ document.getElementById('ready').textContent = 'Ready';`;
                 }
             }
         });
-        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 18 || result.totalPassed !== 18) {
+        if (result.status === 'failed' || result.failures || result.totalFailed || result.totalTests !== 19 || result.totalPassed !== 19) {
             throw new Error(`Browser fixture failed: ${result.message || `${result.totalFailed} failures`}`);
         }
         const records = readRecords(hits);
+        csp.verify(manifest, records);
         const byTitle = title => records.find(record => record.test.at(-1) === title);
         const ids = names => names.map(name => manifest.templates.find(entry => entry.path === templatePaths[name]).id).sort();
         const expectations = {
@@ -216,7 +222,7 @@ document.getElementById('ready').textContent = 'Ready';`;
             'renders legacy jQuery conditions loops escaped values and nested templates': ['inline', 'jquery', 'jquery-child'],
             'renders Magento literals and consumes inert HTML templates': ['inline', 'literal']
         };
-        assert.equal(records.length, 18);
+        assert.equal(records.length, 19);
         const generatedChild = manifest.templates.find(entry => entry.path.endsWith('generated-child.phtml'));
         const renderedOnly = byTitle('links PHP child templates without recording execution');
         assert.equal(renderedOnly.hits[generatedChild.id], undefined);
@@ -270,7 +276,7 @@ document.getElementById('ready').textContent = 'Ready';`;
         const retainedScriptHits = byTitle('resets inline script counts on a retained page').hits[scriptEntry.id];
         assert.equal(retainedScriptHits['script:1:f:0'], 1);
         assert.equal(retainedScriptHits['script:2:s:0'] || 0, 0);
-        assert.equal(report.summary.covered, 16);
+        assert.equal(report.summary.covered, 17);
         assert.equal(report.summary.uncovered, 4);
         assert.ok(report.lines.covered > 0 && report.lines.covered < report.lines.total);
         writeReport(report, path.join(output, 'report'));

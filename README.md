@@ -1,6 +1,6 @@
 # Magento 2 template coverage for Cypress and Playwright
 
-Coverage for Magento HTML/PHTML templates, including Knockout, jQuery templates, Hyvä/Alpine bindings and inline JavaScript. Supports Cypress and Playwright collection with Luma/Knockout and regular Hyvä/Alpine 3. Reports separate executable source lines from DOM presence. Originals stay untouched; only disposable copies are instrumented.
+Coverage for Magento HTML/PHTML templates, including Knockout, jQuery templates, Hyvä/Alpine bindings and inline JavaScript. Supports Cypress and Playwright collection with Luma/Knockout, Hyvä CSP and regular Hyvä/Alpine 3. Reports separate executable source lines from DOM presence. Originals stay untouched; only disposable copies are instrumented.
 
 Use this package to find untested storefront bindings and inline scripts in Magento modules and themes. For a Docker environment that combines template, PHP and whole-file JavaScript reports, see [MageLens](https://github.com/VitaliyBoyko/MageLens).
 
@@ -118,7 +118,7 @@ coverage; sending an email does not produce browser coverage.
 
 Automatic detection retains legacy engine precedence in mixed HTML; Alpine attributes in those regions remain unchanged with a report note. Use an explicit engine override when the remaining template syntax is ambiguous. PHTML uses the same engine detection, with PHP tokens masked during parsing. Mixed Knockout and Alpine bindings can share a file.
 
-Alpine support targets the regular Alpine 3 evaluator used by the Hyvä default theme. The restricted Alpine CSP evaluator is not supported by expression instrumentation. PHTML is tokenized to leave PHP code and PHP line numbers unchanged; directives emitted wholly by PHP and dynamic attribute names are not assigned invented source locations. Unquoted/malformed directives and dynamic or multiline `x-model` expressions remain unchanged with a visible report limitation. Dynamic input type/name bindings are also left uninstrumented for model coverage. Custom Alpine plugins are measured only through the supported directives they evaluate.
+Alpine support includes the Hyvä CSP evaluator and regular Alpine 3. CSP binding coverage supports the property-path syntax used by Hyvä 1.5.3 (Alpine CSP 3.14.3), retaining evaluation scope, event arguments, loop locals and getter/setter models. Other CSP evaluator expression languages are not supported. Expressions still need to be valid for the evaluator used by your application; coverage does not make regular Alpine expressions CSP-compatible. PHTML is tokenized to leave PHP code and PHP line numbers unchanged; directives emitted wholly by PHP and dynamic attribute names are not assigned invented source locations. Unquoted/malformed directives and dynamic or multiline `x-model` expressions remain unchanged with a visible report limitation. Dynamic input type/name bindings are also left uninstrumented for model coverage. Custom Alpine plugins are measured only through the supported directives they evaluate.
 
 ## Inline scripts and inserted fragments
 
@@ -151,7 +151,7 @@ by minifiers/sanitizers can prevent DOM observation. Use Istanbul for whole `.js
 ## Repeat runs and upgrades
 
 Use fresh manifests, disposable copies, static assets and raw records for each run.
-Version 1.4 uses new source identities for every template. Recreate manifests, copies and raw records when upgrading. JSON retains schema version 2 and adds per-file script diagnostics, function and branch counters and their summaries. Hits from old
+Version 1.5 uses new source identities for every template. Recreate manifests, copies and raw records when upgrading. JSON retains schema version 2 and adds per-file script diagnostics, function and branch counters and their summaries. Hits from old
 source identities are rejected. The metric is now named `template-execution`.
 
 Each test writes a unique `.mtc` record. Counters reset between tests, including
@@ -160,10 +160,27 @@ records and deduplicate copied record IDs. Stale IDs, conflicting records and in
 counts fail the report. No records produces an explicitly labelled inventory baseline.
 Keep generated artifacts and this package in test infrastructure.
 
-Cross-window collection runs its DOM observer in the application's JavaScript realm
-so it preserves Prototype's DOM extensions. Initializing it from Cypress uses the
-application's `Function` constructor and requires its CSP to permit dynamic code
-evaluation, as Magento's legacy and template engines do.
+Collection does not use dynamic `Function` construction. For Cypress CSP checks,
+set `experimentalCspAllowList: ['default-src', 'script-src', 'script-src-elem']`
+and `modifyObstructiveCode: false` in the Cypress configuration. Cypress adds its
+own script nonce and removes some directives; use Playwright when you need to test
+the unmodified policy. See [Cypress CSP behavior](https://docs.cypress.io/app/references/content-security-policy).
+
+Instrumented Alpine property paths use the reserved `x-mtc` directive and require
+the package runtime before Alpine starts. The collection adapters install it
+automatically. For a separate warm-up browser that must not record coverage:
+
+```js
+// Playwright: register before navigating any page in this context.
+const {installTemplateRuntime} = require('@vitaliiboiko/magento-template-coverage/playwright');
+await installTemplateRuntime(context);
+
+// Cypress: add to the warm-up support file.
+const {observeExecution} = require('@vitaliiboiko/magento-template-coverage/browser');
+Cypress.on('window:before:load', win => observeExecution(win, () => {}));
+```
+
+Keep warm-up and measured runs in separate browser contexts.
 
 ## Package development
 
@@ -194,7 +211,7 @@ DOM presence and expression execution are separate metrics. Confirm the applicat
 
 ### Does it support Hyvä CSP themes?
 
-Expression instrumentation targets the regular Alpine 3 evaluator. The restricted Alpine CSP evaluator is unsupported. See [supported syntax and limitations](#html-template-syntax) before selecting a theme.
+Yes. Hyvä CSP bindings and inline scripts are measured without enabling `unsafe-eval` or `unsafe-inline`. Keep the theme’s script nonces or hash registration enabled. Coverage instruments the script before Magento computes its hash. See [supported syntax and limitations](#html-template-syntax).
 
 ### Can I collect coverage from an existing remote store?
 

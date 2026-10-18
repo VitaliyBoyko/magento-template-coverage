@@ -6,6 +6,11 @@ const { randomUUID } = require('node:crypto');
 const { browserSource } = require('../lib/browser-source');
 const registeredContexts = new WeakSet();
 
+/** Keep instrumented templates functional during warm-up without recording hits. */
+async function installTemplateRuntime(context) {
+    await context.addInitScript({content: `(() => { const runtime = ${browserSource()}; runtime.observeExecution(window, () => {}); })();`});
+}
+
 /** Register before creating/navigating pages. Works with any Playwright browser. */
 async function registerTemplateCoverage(context, { outputDir = '.template-coverage', metadata = {} } = {}) {
     if (registeredContexts.has(context)) throw new Error('Register template coverage once per context, before creating pages.');
@@ -105,4 +110,4 @@ function withTemplateCoverage(test, options = {}) {
     });
 }
 
-module.exports = { registerTemplateCoverage, withTemplateCoverage };
+module.exports = { installTemplateRuntime, registerTemplateCoverage, withTemplateCoverage };

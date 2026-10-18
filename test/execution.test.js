@@ -70,7 +70,7 @@ test('real Knockout accessors execute once and preserve observable identity and 
 test('RequireJS attachment retains existing hooks and resets callbacks on retained pages', () => {
     const ko = require('knockout');
     const original = ko.bindingProvider.instance.parseBindingsString;
-    const win = {};
+    const win = {document: {addEventListener() {}}};
     const first = [];
     const second = [];
     try {
@@ -95,7 +95,7 @@ test('RequireJS attachment retains existing hooks and resets callbacks on retain
 test('navigation reattaches to a new document behind the same WindowProxy', () => {
     const ko = require('knockout');
     const original = ko.bindingProvider.instance.parseBindingsString;
-    const win = { document: {} };
+    const win = { document: {addEventListener() {}} };
     const first = [];
     const second = [];
     const evaluate = () => ko.bindingProvider.instance.parseBindingsString(
@@ -108,7 +108,7 @@ test('navigation reattaches to a new document behind the same WindowProxy', () =
         observer.disconnect();
         ko.bindingProvider.instance.parseBindingsString = original;
         delete win.requirejs;
-        win.document = {};
+        win.document = {addEventListener() {}};
         observeExecution(win, (...hit) => second.push(hit));
         win.requirejs = function () {};
         win.requirejs.onResourceLoad({ defined: { ko } }, { id: 'ko' });
@@ -119,7 +119,7 @@ test('navigation reattaches to a new document behind the same WindowProxy', () =
 });
 
 test('reconnecting to the same document restores a deleted execution helper', () => {
-    const win = { document: {} };
+    const win = { document: {addEventListener() {}} };
     const first = [];
     const second = [];
     observeExecution(win, (...hit) => first.push(hit));

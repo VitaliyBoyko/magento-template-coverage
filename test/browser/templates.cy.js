@@ -189,3 +189,26 @@ describe('PHP child template output', () => {
         cy.window().its('unknownOutput').should('equal', true);
     });
 });
+
+
+describe('strict CSP Alpine', () => {
+    it('preserves CSP bindings, writes, event arguments, loops and inserted templates', () => {
+        for (const file of ['csp-baseline.html', 'csp.html']) {
+            const violations = [];
+            cy.visit('/' + file, {onBeforeLoad(win) {
+                win.document.addEventListener('securitypolicyviolation', event => violations.push(event.violatedDirective));
+            }});
+            cy.get('#initialized').should('have.text', 'ready');
+            cy.get('#name').clear().type('updated');
+            cy.get('#echo').should('have.text', 'updated');
+            cy.get('#increment').click();
+            cy.get('#async').click();
+            cy.get('#count').should('have.text', '2');
+            cy.get('.item').should('have.length', 2);
+            cy.get('#never').should('not.exist');
+            cy.get('#insert').click();
+            cy.get('#inserted').should('have.text', 'updated');
+            cy.then(() => expect(violations).to.deep.equal([]));
+        }
+    });
+});

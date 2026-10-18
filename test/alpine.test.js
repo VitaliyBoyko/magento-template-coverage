@@ -67,3 +67,13 @@ test('standalone Alpine initialization and HTML directives are discovered', () =
         assert.equal(result.statements[0].syntax, syntax);
     }
 });
+
+
+test('CSP component paths retain PHP-generated identifier suffixes and original tokens', () => {
+    const source = '<section x-data="component<?= (int) $id ?>"><span x-text="name"></span></section>';
+    const result = analyzeStatements(source, id, 'alpine', {phtml: true});
+    assert.equal((result.unsupported || []).length, 0);
+    assert.match(result.content, /x-data="__mtc_[a-f0-9]+_0\.component<\?= \(int\) \$id \?>"/);
+    assert.ok(!result.content.includes('__mtcTemplateHit'));
+    assert.equal(result.content.split('\n').length, source.split('\n').length);
+});
