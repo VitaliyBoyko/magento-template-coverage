@@ -9,10 +9,12 @@ Use this package to find untested storefront bindings and inline scripts in Mage
 ## Install
 
 ```sh
-npm install --save-dev @vitaliiboiko/magento-template-coverage@1.3.0
+npm install --save-dev @vitaliiboiko/magento-template-coverage@1.5.0
 ```
 
 Node.js 18.3+ and an existing Cypress or Playwright installation are required. Each test runner retains its own Node/browser requirements.
+
+For existing installations, follow the [upgrade instructions](#repeat-runs-and-upgrades) when updating the package.
 
 ## Inventory → instrument → collect → report
 
@@ -124,7 +126,7 @@ Alpine support includes the Hyvä CSP evaluator and regular Alpine 3. CSP bindin
 
 Executable scripts are instrumented in HTML/PHTML and native `<template>` bodies. The same counters work when an application inserts or executes an instrumented template fragment later. Fetching, parsing or caching a fragment alone does not count as execution. Scripts loaded through `src` belong to their separate `.js` file; JSON and `text/x-magento-init` blocks are data, not executable script bodies.
 
-PHTML scripts support PHP values, identifier suffixes and PHP `if/else` initializer choices. Original newlines and source locations are preserved. PHP branch choices are not counted as JavaScript branches. Unsupported scripts remain unchanged and are listed in the report. Runtime-generated template strings, database content and arbitrary generated code are not assigned invented source locations.
+PHTML scripts support PHP values, identifier suffixes, PHP `if/else` initializer choices and PHP-selected `const`/`let` declarations that retain their shared JavaScript scope. Original newlines and source locations are preserved. PHP branch choices are not counted as JavaScript branches. Unsupported scripts remain unchanged and are listed in the report. Runtime-generated template strings, database content and arbitrary generated code are not assigned invented source locations.
 
 Standalone PHP `echo` expressions inside scripts are traced in the disposable copy. Each expression is evaluated once in its original PHP scope. A comment records whether its output is empty or contains counters from instrumented child templates, such as Hyvä reCAPTCHA validation fragments. The report links to those child source files; their statements, functions and branches are counted there only when JavaScript executes. The parent does not receive duplicate counters.
 
