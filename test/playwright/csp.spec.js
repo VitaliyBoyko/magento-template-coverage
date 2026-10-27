@@ -37,6 +37,15 @@ test('strict CSP preserves Alpine behavior, scopes and execution coverage', asyn
             await expect(page.locator('#never')).toHaveCount(0);
             await page.locator('#insert').click();
             await expect(page.locator('#inserted')).toHaveText('updated');
+            expect(await page.evaluate(() => {
+                window.dispatchEvent(new CustomEvent('update-gallery-42', {detail: 'gallery-updated'}));
+                window.dispatchEvent(new CustomEvent('update-prices-42', {detail: 'price-updated'}));
+                const event = new Event('submit', {bubbles: true, cancelable: true});
+                document.querySelector('#prevented').dispatchEvent(event);
+                return event.defaultPrevented;
+            })).toBe(true);
+            await expect(page.locator('#image')).toHaveText('gallery-updated');
+            await expect(page.locator('#price')).toHaveText('price-updated');
             expect(await page.evaluate(() => window.cspViolations)).toEqual([]);
         }
         expect(errors).toEqual([]);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 - 2026-10-27
+
+- Measure Alpine listeners with PHP-generated event names, including Hyvä gallery and price updates, at their original PHTML locations.
+- Preserve modifier-only listeners such as `@submit.prevent` without warnings or invented expression coverage.
+- Keep other Alpine bindings working when PHP omits a conditional listener.
+- Recreate manifests, instrumented copies and raw records when upgrading: version 1.5.1 uses new template identities.
+
 ## 1.5.0 - 2026-10-18
 
 - Support Hyvä CSP Alpine bindings without dynamic code generation, preserving event arguments, model writes, loop locals and inserted templates.

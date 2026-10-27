@@ -7,6 +7,7 @@ const path = require('node:path');
 const {createManifest, instrument, merge} = require('../lib');
 const {analyzeStatements} = require('../lib/statements');
 const {maskPhp} = require('../lib/alpine');
+const {execFileSync} = require('node:child_process');
 const id = 'a'.repeat(32);
 
 test('PHTML keeps PHP tokens, strict declarations and source line numbers untouched', t => {
@@ -76,4 +77,50 @@ test('CSP component paths retain PHP-generated identifier suffixes and original 
     assert.match(result.content, /x-data="__mtc_[a-f0-9]+_0\.component<\?= \(int\) \$id \?>"/);
     assert.ok(!result.content.includes('__mtcTemplateHit'));
     assert.equal(result.content.split('\n').length, source.split('\n').length);
+});
+
+test('PHP event names retain complete names, modifiers, offsets and conditional attributes', () => {
+    const source = `<?php declare(strict_types=1); $productId = 42; ?>
+<section
+<?php if ($productId): ?>@update-prices-<?= (int)$productId ?>.window="updatePrice"<?php endif; ?>
+ x-data="component" @update-gallery-<?= (int)$productId ?>.window="updateImage"
+ @update-gallery-<?= (int)$productId + 1 ?>.window="unused"
+ x-on:update-<?=
+ (int)$productId
+ ?>.window="updateImage"
+><?php echo __LINE__; ?></section>`;
+    const result = analyzeStatements(source, id, 'auto', {phtml: true});
+    assert.deepEqual(result.unsupported || [], []);
+    assert.deepEqual(result.statements.map(s => s.binding), [
+        '@update-prices-<?= (int)$productId ?>.window', 'x-data',
+        '@update-gallery-<?= (int)$productId ?>.window',
+        '@update-gallery-<?= (int)$productId + 1 ?>.window',
+        'x-on:update-<?=\n (int)$productId\n ?>.window'
+    ]);
+    assert.deepEqual(result.statements.map(s => s.start.line), [3, 4, 4, 5, 6]);
+    const php = text => maskPhp(text).ranges.map(([start, end]) => text.slice(start, end));
+    assert.deepEqual(php(result.content), php(source));
+    assert.equal(result.content.split('\n').length, source.split('\n').length);
+    for (const productId of [42, 0]) {
+        const render = text => execFileSync('php', ['-n'], {input: text.replace('$productId = 42', `$productId = ${productId}`), encoding: 'utf8'});
+        const baseline = render(source), instrumented = render(result.content);
+        assert.equal(instrumented.includes('@update-prices-'), Boolean(productId));
+        assert.match(instrumented, /x-mtc="[^"]+"/);
+        assert.equal(instrumented.replace(/ x-mtc="[^"]+"/g, '').replace(/__mtc_[a-f0-9]+_\d+\./g, ''), baseline);
+    }
+});
+
+test('modifier-only listeners have no expression to instrument, while malformed expressions remain visible', () => {
+    for (const attribute of ['@submit.prevent', 'x-on:submit.prevent', '@click.stop.once', '@submit.prevent=""']) {
+        const source = `<form ${attribute}></form>`;
+        const result = analyzeStatements(source, id, 'alpine', {phtml: true});
+        assert.equal(result.content, source);
+        assert.deepEqual(result.statements, []);
+        assert.deepEqual(result.unsupported || [], []);
+    }
+    for (const attribute of ['@click=handler', '@click="broken("', 'x-text']) {
+        const result = analyzeStatements(`<div ${attribute}></div>`, id, 'alpine', {phtml: true});
+        assert.equal(result.statements.length, 0);
+        assert.equal(result.unsupported.length, 1);
+    }
 });

@@ -208,6 +208,15 @@ describe('strict CSP Alpine', () => {
             cy.get('#never').should('not.exist');
             cy.get('#insert').click();
             cy.get('#inserted').should('have.text', 'updated');
+            cy.window().then(win => {
+                win.dispatchEvent(new win.CustomEvent('update-gallery-42', {detail: 'gallery-updated'}));
+                win.dispatchEvent(new win.CustomEvent('update-prices-42', {detail: 'price-updated'}));
+                const event = new win.Event('submit', {bubbles: true, cancelable: true});
+                win.document.querySelector('#prevented').dispatchEvent(event);
+                expect(event.defaultPrevented).to.equal(true);
+            });
+            cy.get('#image').should('have.text', 'gallery-updated');
+            cy.get('#price').should('have.text', 'price-updated');
             cy.then(() => expect(violations).to.deep.equal([]));
         }
     });

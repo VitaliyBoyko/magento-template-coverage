@@ -9,7 +9,7 @@ Use this package to find untested storefront bindings and inline scripts in Mage
 ## Install
 
 ```sh
-npm install --save-dev @vitaliiboiko/magento-template-coverage@1.5.0
+npm install --save-dev @vitaliiboiko/magento-template-coverage@latest
 ```
 
 Node.js 18.3+ and an existing Cypress or Playwright installation are required. Each test runner retains its own Node/browser requirements.
@@ -120,7 +120,7 @@ coverage; sending an email does not produce browser coverage.
 
 Automatic detection retains legacy engine precedence in mixed HTML; Alpine attributes in those regions remain unchanged with a report note. Use an explicit engine override when the remaining template syntax is ambiguous. PHTML uses the same engine detection, with PHP tokens masked during parsing. Mixed Knockout and Alpine bindings can share a file.
 
-Alpine support includes the Hyvä CSP evaluator and regular Alpine 3. CSP binding coverage supports the property-path syntax used by Hyvä 1.5.3 (Alpine CSP 3.14.3), retaining evaluation scope, event arguments, loop locals and getter/setter models. Other CSP evaluator expression languages are not supported. Expressions still need to be valid for the evaluator used by your application; coverage does not make regular Alpine expressions CSP-compatible. PHTML is tokenized to leave PHP code and PHP line numbers unchanged; directives emitted wholly by PHP and dynamic attribute names are not assigned invented source locations. Unquoted/malformed directives and dynamic or multiline `x-model` expressions remain unchanged with a visible report limitation. Dynamic input type/name bindings are also left uninstrumented for model coverage. Custom Alpine plugins are measured only through the supported directives they evaluate.
+Alpine support includes the Hyvä CSP evaluator and regular Alpine 3. CSP binding coverage supports the property-path syntax used by Hyvä 1.5.3 (Alpine CSP 3.14.3), retaining evaluation scope, event arguments, loop locals and getter/setter models. Other CSP evaluator expression languages are not supported. Expressions still need to be valid for the evaluator used by your application; coverage does not make regular Alpine expressions CSP-compatible. PHTML is tokenized to leave PHP code and PHP line numbers unchanged; PHP-generated event names such as `@update-gallery-<?= (int)$productId ?>.window` retain their original source locations and modifiers. Modifier-only listeners such as `@submit.prevent` preserve their behavior without adding an expression to the coverage total. Directives emitted wholly by PHP are not assigned invented source locations. Unquoted/malformed directives and dynamic or multiline `x-model` expressions remain unchanged with a visible report limitation. Dynamic input type/name bindings are also left uninstrumented for model coverage. Custom Alpine plugins are measured only through the supported directives they evaluate.
 
 ## Inline scripts and inserted fragments
 
