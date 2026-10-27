@@ -124,3 +124,17 @@ test('modifier-only listeners have no expression to instrument, while malformed 
         assert.equal(result.unsupported.length, 1);
     }
 });
+
+test('multiline PHP event names keep subsequent Knockout warnings at original source lines', () => {
+    const source = `<div @update-<?=
+42
+?>.window="handler">
+<span data-bind="<?= 'text: name' ?>"></span>
+<!-- ko if: <?= $visible ?> -->
+<span data-bind="text: name"></span>
+<!-- /ko -->
+</div>`;
+    const result = analyzeStatements(source, id, 'auto', {phtml: true});
+    assert.deepEqual(result.unsupported, ['PHP-generated binding at line 4', 'PHP-generated Knockout binding at line 5']);
+    assert.deepEqual(result.statements.map(statement => statement.start.line).sort((a, b) => a - b), [1, 6]);
+});

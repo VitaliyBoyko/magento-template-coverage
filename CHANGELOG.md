@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.2 - 2026-10-27
+
+- Keep unsupported-binding warnings on their original PHTML lines after multiline PHP-generated Alpine event names.
+
 ## 1.5.1 - 2026-10-27
 
 - Measure Alpine listeners with PHP-generated event names, including Hyvä gallery and price updates, at their original PHTML locations.
