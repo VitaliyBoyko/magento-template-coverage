@@ -31,7 +31,7 @@ Data flow: inventory original sources → analyze and hash a manifest → instru
 
 ## Install and validate
 
-Run from the repository root. Package metadata requires Node >=18.3; CI uses Node 24. Use the committed npm lockfile. PHP CLI must be on PATH for PHTML behavior tests.
+Run from the repository root. Package metadata requires Node >=18.3; CI tests Node 24 and 26, including before npm publication. Use the committed npm lockfile. PHP CLI must be on PATH for PHTML behavior tests.
 
 ```sh
 npm ci

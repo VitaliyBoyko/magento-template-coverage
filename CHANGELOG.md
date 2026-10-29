@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.3 - 2026-10-29
+
+- Verify Node.js 26 compatibility alongside Node.js 24 for template analysis, Playwright integration and TypeScript declarations.
+
 ## 1.5.2 - 2026-10-27
 
 - Keep unsupported-binding warnings on their original PHTML lines after multiline PHP-generated Alpine event names.

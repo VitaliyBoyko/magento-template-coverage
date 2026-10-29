@@ -1,6 +1,6 @@
 {
   "name": "@vitaliiboiko/magento-template-coverage",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Magento 2 HTML/PHTML template execution coverage for Cypress and Playwright, including Knockout, Hyva/Alpine and inline JavaScript",
   "license": "UNLICENSED",
   "repository": {
