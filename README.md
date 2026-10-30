@@ -225,6 +225,10 @@ Only if you control its test environment and serve instrumented copies there. In
 
 See the [changelog](CHANGELOG.md) and [GitHub releases](https://github.com/VitaliyBoyko/magento-template-coverage/releases). Report reproducible problems in [issues](https://github.com/VitaliyBoyko/magento-template-coverage/issues), including the package version, runner, template syntax and a minimal example.
 
+## License
+
+Licensed under the [MIT License](LICENSE), which permits commercial use, modification and redistribution under its terms.
+
 ## Repository navigation for AI agents
 
 See [AGENTS.md](AGENTS.md) for the architecture map, source entry points, validation commands and contribution constraints.

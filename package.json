@@ -2,7 +2,7 @@
   "name": "@vitaliiboiko/magento-template-coverage",
   "version": "1.5.3",
   "description": "Magento 2 HTML/PHTML template execution coverage for Cypress and Playwright, including Knockout, Hyva/Alpine and inline JavaScript",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/VitaliyBoyko/magento-template-coverage.git"
@@ -49,6 +49,7 @@
     "bin",
     "lib",
     "cypress",
+    "LICENSE",
     "README.md",
     "CHANGELOG.md",
     "playwright"
