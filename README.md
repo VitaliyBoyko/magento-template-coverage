@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+SPDX-License-Identifier: MIT
+License: see LICENSE in the repository root.
+-->
+
 # Magento 2 template coverage for Cypress and Playwright
 
 Coverage for Magento HTML/PHTML templates, including Knockout, jQuery templates, Hyvä/Alpine bindings and inline JavaScript. Supports Cypress and Playwright collection with Luma/Knockout, Hyvä CSP and regular Hyvä/Alpine 3. Reports separate executable source lines from DOM presence. Originals stay untouched; only disposable copies are instrumented.

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// SPDX-License-Identifier: MIT
+// License: see LICENSE in the repository root.
+
 import type {BrowserContext, TestType} from '@playwright/test';
 export interface TemplateCoverageOptions {
     outputDir?: string;

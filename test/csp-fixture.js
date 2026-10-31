@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// SPDX-License-Identifier: MIT
+// License: see LICENSE in the repository root.
+
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');

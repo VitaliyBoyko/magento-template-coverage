@@ -50,6 +50,8 @@
     "lib",
     "cypress",
     "LICENSE",
+    "LICENSE.license",
+    "package.json.license",
     "README.md",
     "CHANGELOG.md",
     "playwright"

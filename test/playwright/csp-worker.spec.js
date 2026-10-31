@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// SPDX-License-Identifier: MIT
+// License: see LICENSE in the repository root.
+
 'use strict';
 const {test: base, expect} = require('@playwright/test');
 const fs = require('node:fs');

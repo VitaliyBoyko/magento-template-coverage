@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// SPDX-License-Identifier: MIT
+// License: see LICENSE in the repository root.
+
 import {test as base} from '@playwright/test';
 import {withTemplateCoverage, registerTemplateCoverage} from '../../playwright';
 const custom = base.extend<{customer: string}>({customer: async ({}, use) => use('customer')});

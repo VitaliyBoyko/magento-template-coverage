@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Private Entrepreneur Vitalii Boiko
+// SPDX-License-Identifier: MIT
+// License: see LICENSE in the repository root.
+
 require.config({baseUrl: '/lib', paths: {ko: 'knockoutjs/knockout', underscore: 'underscore', jquerytmpl: '/jquery.tmpl'}, shim: {jquerytmpl: {deps: ['jquery']}}});
 require(['jquery', 'underscore', 'ko', 'mage/template', 'mage/utils/template', 'jquerytmpl'], function ($, _, ko, mageTemplate, literals) {
     Promise.all(['underscore', 'jquery', 'jquery-child', 'literal', 'inline'].map(function (name) {
