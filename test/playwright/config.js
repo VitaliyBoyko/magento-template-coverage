@@ -2,4 +2,11 @@
 // SPDX-License-Identifier: MIT
 // License: see LICENSE in the repository root.
 
-module.exports = {testDir: __dirname, testMatch: '*.spec.js', workers: 1, retries: 0, reporter: 'list', use: {browserName: process.env.MTC_BROWSER || 'chromium', headless: true}, outputDir: '../../artifacts/playwright'};
+module.exports = {
+    testDir: __dirname, testMatch: '*.spec.js', workers: 1, retries: 0, reporter: 'list',
+    use: {
+        browserName: process.env.MTC_BROWSER || 'chromium', headless: true,
+        launchOptions: process.env.MTC_CHROME_EXECUTABLE_PATH ? {executablePath: process.env.MTC_CHROME_EXECUTABLE_PATH} : {}
+    },
+    outputDir: '../../artifacts/playwright'
+};
