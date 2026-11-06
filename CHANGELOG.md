@@ -6,6 +6,10 @@ License: see LICENSE in the repository root.
 
 # Changelog
 
+## 1.5.4 - 2026-11-06
+
+- Verify Playwright 1.65 compatibility with Chrome for Testing 156.0.8078.80, including inert controls, rendered accessible names and authenticated CSP fixtures with path-scoped cookies.
+
 ## 1.5.3 - 2026-10-29
 
 - Verify Node.js 26 compatibility alongside Node.js 24 for template analysis, Playwright integration and TypeScript declarations.
