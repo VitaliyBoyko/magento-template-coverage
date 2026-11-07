@@ -6,6 +6,10 @@ License: see LICENSE in the repository root.
 
 # Changelog
 
+## 1.5.5 - 2026-11-07
+
+- Update Acorn to 8.19.0 for Unicode 17/18 identifiers and expression-validation fixes in Alpine, Knockout and template parsing, preserving Node.js 18.3 compatibility.
+
 ## 1.5.4 - 2026-11-06
 
 - Verify Playwright 1.65 compatibility with Chrome for Testing 156.0.8078.80, including inert controls, rendered accessible names and authenticated CSP fixtures with path-scoped cookies.
