@@ -18,7 +18,7 @@ Use this package to find untested storefront bindings and inline scripts in Mage
 npm install --save-dev @vitaliiboiko/magento-template-coverage@latest
 ```
 
-Node.js 18.3+ and an existing Cypress or Playwright installation are required. Each test runner retains its own Node/browser requirements.
+Node.js 20.19+ within 20.x, or Node.js 22.12+ and an existing Cypress or Playwright installation are required. Version 2 drops Node.js 18 and older Node.js 20/22 releases to load the security-patched HTML parser synchronously. Each test runner retains its own Node/browser requirements.
 
 For existing installations, follow the [upgrade instructions](#repeat-runs-and-upgrades) when updating the package.
 
