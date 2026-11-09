@@ -6,6 +6,11 @@ License: see LICENSE in the repository root.
 
 # Changelog
 
+## 2.0.0 - 2026-11-09
+
+- Update parse5 to 8.1.1 to fix malformed-HTML crashes, excessive parsing time and incorrect foreign-content tree construction used during template analysis.
+- Require Node.js ^20.19.0 or >=22.12.0 for synchronous loading of the ESM-only parser; CommonJS package exports remain available. Recreate manifests and instrumented copies, then regenerate coverage reports after upgrading.
+
 ## 1.5.5 - 2026-11-07
 
 - Update Acorn to 8.19.0 for Unicode 17/18 identifiers and expression-validation fixes in Alpine, Knockout and template parsing, preserving Node.js 18.3 compatibility.
